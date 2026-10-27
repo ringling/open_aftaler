@@ -55,7 +55,7 @@
     </header>
     <div id="chat"></div>
     <form id="form" class="pearl-glass">
-      <input id="input" class="pearl-well" placeholder="Try: show a pricing table for 3 plans" autocomplete="off" />
+      <input id="input" class="pearl-well" placeholder="Try: show my open tasks and let me add one" autocomplete="off" />
       <button id="send" class="pearl-btn pearl-btn--accent">Send</button>
     </form>
   </main>
@@ -63,12 +63,33 @@
   <script>
     const { React, createRoot, Renderer, openuiChatLibrary } = window.__OpenUI;
 
-    // The system prompt teaches Claude OpenUI Lang and the built-in components.
-    const systemPrompt = openuiChatLibrary.prompt({
-      preamble:
-        "You are a helpful assistant. Answer every message with a rich, interactive UI. " +
-        "Use sentence case, and at most one primary (accent) button per view; make other buttons secondary.",
-    });
+    // Tools are defined in tools.py. The server publishes their specs; the system prompt
+    // tells Claude about them, and toolProvider runs Query()/Mutation() calls against
+    // the server directly, without asking Claude again.
+    const toolProvider = {};
+    const ready = fetch("/api/tools")
+      .then((res) => res.json())
+      .then((tools) => {
+        for (const { name } of tools) {
+          toolProvider[name] = async (args) => {
+            const res = await fetch(`/api/tools/${name}`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(args ?? {}),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail ?? `Tool ${name} failed`);
+            return data;
+          };
+        }
+        // The system prompt teaches Claude OpenUI Lang, the built-in components and the tools.
+        return openuiChatLibrary.prompt({
+          preamble:
+            "You are a helpful assistant. Answer every message with a rich, interactive UI. " +
+            "Use sentence case, and at most one primary (accent) button per view; make other buttons secondary.",
+          tools,
+        });
+      });
 
     const chat = document.getElementById("chat");
     const form = document.getElementById("form");
@@ -104,7 +125,7 @@
 
     function render(root, notice, text, isStreaming) {
       const { lang, errors } = splitErrors(text);
-      root.render(React.createElement(Renderer, { response: lang, library: openuiChatLibrary, isStreaming, onAction }));
+      root.render(React.createElement(Renderer, { response: lang, library: openuiChatLibrary, isStreaming, onAction, toolProvider }));
       notice.textContent = errors.join(" ");
     }
 
@@ -135,6 +156,7 @@
       send.disabled = true;
       let answer = "";
       try {
+        const systemPrompt = await ready;
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },

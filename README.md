@@ -21,9 +21,14 @@ Open http://localhost:8000 and try:
 - "Make a signup form for a newsletter"
 - "Bar chart of monthly sales for 2025 with made-up numbers"
 
-Clicking generated buttons or submitting generated forms sends a follow-up message.
+- "Show my open tasks and let me add one" (uses the example tools in `tools.py`)
+
+Clicking generated buttons or submitting generated forms sends a follow-up message. Generated UI
+can also read and change data through **tools** (`tools.py`) without asking Claude again.
 
 ## How it works
+
+For the full walkthrough, with a sequence diagram, see [docs/openui-flow.md](docs/openui-flow.md).
 
 1. The page builds the system prompt in the browser with `openuiChatLibrary.prompt(...)`.
    This prompt teaches Claude the OpenUI Lang syntax and the built-in components.

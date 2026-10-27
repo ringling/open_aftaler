@@ -8,10 +8,12 @@ from pathlib import Path
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+import tools
 
 MODEL = "claude-opus-5-5"
 STATIC = Path(__file__).parent / "static"
@@ -68,3 +70,21 @@ async def chat(req: ChatRequest):
             yield "\n[error] Could not reach the Claude API."
 
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/api/tools")
+async def list_tools():
+    """Tool specs for the page: they go in the system prompt and the toolProvider."""
+    return tools.specs()
+
+
+@app.post("/api/tools/{name}")
+async def call_tool(name: str, args: dict = Body(default={})):
+    """Run one tool for a Query() or Mutation() in the generated UI."""
+    tool = tools.TOOLS.get(name)
+    if tool is None:
+        raise HTTPException(404, f"Unknown tool: {name}")
+    try:
+        return tool["fn"](**args)
+    except (TypeError, ValueError) as e:  # wrong or invalid arguments
+        raise HTTPException(400, str(e))
