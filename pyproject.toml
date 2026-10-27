@@ -1,0 +1,11 @@
+[project]
+name = "openui-claude-example"
+version = "0.1.0"
+description = "Minimal Thesys OpenUI generative-UI chat with a Python + Claude backend"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=2.3",
+    "fastapi",
+    "python-dotenv",
+    "uvicorn[standard]",
+]

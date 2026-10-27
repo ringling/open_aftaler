@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" data-theme="pearl" data-openui-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenUI + Claude</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@openuidev/browser-bundle@0.2.1/dist/openui-styles.css" />
+  <!-- Pearl design system: tokens, component classes, and the OpenUI bridge (loaded after OpenUI's CSS). -->
+  <link rel="stylesheet" href="/static/pearl/tokens.css" />
+  <link rel="stylesheet" href="/static/pearl/bundle.css" />
+  <link rel="stylesheet" href="/static/pearl/openui-pearl.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@openuidev/browser-bundle@0.2.1/dist/openui-bundle.min.js"></script>
+  <script>
+    // Apply the saved theme before first paint: Pearl (light) or Glass (dark).
+    // data-theme switches the Pearl tokens; data-openui-theme switches OpenUI's own defaults.
+    function applyTheme(mode) {
+      document.documentElement.dataset.theme = mode === "dark" ? "glass" : "pearl";
+      document.documentElement.dataset.openuiTheme = mode === "dark" ? "dark" : "light";
+    }
+    let savedTheme = null;
+    try { savedTheme = localStorage.getItem("theme"); } catch {}
+    applyTheme(savedTheme);
+  </script>
+  <style>
+    :root { color-scheme: light; }
+    :root[data-theme="glass"] { color-scheme: dark; }
+    /* The Pearl ground covers the whole viewport and stays put while the chat scrolls. */
+    html { background: linear-gradient(155deg, var(--ground-top) 0%, var(--ground-mid) 38%, var(--ground-lilac) 68%, var(--ground-sage) 100%) fixed; }
+    body.pearl-ground { margin: 0; min-height: 100vh; background: transparent; font-size: 16px; line-height: 24px; }
+    main { max-width: 860px; margin: 0 auto; padding: var(--space-6) var(--space-4) 0; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+    .kicker { font-size: 20px; line-height: 26px; color: var(--ink-muted); text-shadow: var(--deboss-text); }
+    h1 { margin: var(--space-1) 0 0; font-size: 32px; line-height: 37px; font-weight: 300; color: var(--ink-display); text-shadow: var(--deboss-text); }
+    #chat { display: flex; flex-direction: column; gap: var(--space-4); }
+    .user { align-self: flex-end; max-width: 80%; border-radius: var(--radius-lg); }
+    .assistant { min-height: 24px; }
+    .notice { color: var(--ink-muted); font-size: 15px; line-height: 22px; font-weight: 300; }
+    .notice:not(:empty) { margin-top: var(--space-3); }
+    form { position: sticky; bottom: var(--space-4); margin-top: var(--space-6); display: flex; gap: var(--space-3); padding: var(--space-3); }
+    #input { flex: 1; min-width: 0; border: 0; padding: 12px 18px; font: inherit; color: var(--ink); outline-color: var(--accent); }
+    #input::placeholder { color: var(--ink-muted); }
+    #send:disabled { opacity: 0.5; cursor: default; }
+  </style>
+</head>
+<body class="pearl-ground">
+  <main>
+    <header>
+      <div>
+        <div class="kicker">OpenUI → Claude</div>
+        <h1>Ask for an interface</h1>
+      </div>
+      <button id="theme" class="pearl-btn" type="button"></button>
+    </header>
+    <div id="chat"></div>
+    <form id="form" class="pearl-glass">
+      <input id="input" class="pearl-well" placeholder="Try: show a pricing table for 3 plans" autocomplete="off" />
+      <button id="send" class="pearl-btn pearl-btn--accent">Send</button>
+    </form>
+  </main>
+
+  <script>
+    const { React, createRoot, Renderer, openuiChatLibrary } = window.__OpenUI;
+
+    // The system prompt teaches Claude OpenUI Lang and the built-in components.
+    const systemPrompt = openuiChatLibrary.prompt({
+      preamble:
+        "You are a helpful assistant. Answer every message with a rich, interactive UI. " +
+        "Use sentence case, and at most one primary (accent) button per view; make other buttons secondary.",
+    });
+
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const send = document.getElementById("send");
+    const history = [];
+
+    const themeBtn = document.getElementById("theme");
+    function showTheme() {
+      themeBtn.textContent = document.documentElement.dataset.theme === "glass" ? "Light theme" : "Dark theme";
+    }
+    themeBtn.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "glass" ? "light" : "dark";
+      applyTheme(next);
+      try { localStorage.setItem("theme", next); } catch {}
+      showTheme();
+    });
+    showTheme();
+
+    function addBubble(cls) {
+      const el = document.createElement("div");
+      el.className = `msg ${cls}`;
+      chat.appendChild(el);
+      return el;
+    }
+
+    // Server-side errors arrive as "[error] ..." lines after the OpenUI Lang.
+    function splitErrors(text) {
+      const lines = text.split("\n");
+      const errors = lines.filter((l) => l.startsWith("[error]"));
+      return { lang: lines.filter((l) => !l.startsWith("[error]")).join("\n"), errors };
+    }
+
+    function render(root, notice, text, isStreaming) {
+      const { lang, errors } = splitErrors(text);
+      root.render(React.createElement(Renderer, { response: lang, library: openuiChatLibrary, isStreaming, onAction }));
+      notice.textContent = errors.join(" ");
+    }
+
+    // Clicks on generated buttons/forms send a follow-up message.
+    function onAction(event) {
+      if (event.type === "open_url") return window.open(event.params.url, "_blank", "noopener");
+      if (send.disabled) return;
+      let text = event.humanFriendlyMessage || event.type;
+      if (event.params?.context !== undefined) {
+        text += `\n\nContext: ${JSON.stringify(event.params.context)}`;
+      }
+      if (event.formState && Object.keys(event.formState).length) {
+        text += `\n\nForm values: ${JSON.stringify(event.formState)}`;
+      }
+      ask(text);
+    }
+
+    async function ask(text) {
+      history.push({ role: "user", content: text });
+      addBubble("user pearl-engrave").textContent = text;
+
+      const bubble = addBubble("assistant pearl-card");
+      const mount = bubble.appendChild(document.createElement("div"));
+      const notice = bubble.appendChild(document.createElement("div"));
+      notice.className = "notice";
+      const root = createRoot(mount);
+
+      send.disabled = true;
+      let answer = "";
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ system: systemPrompt, messages: history }),
+        });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          answer += decoder.decode(value, { stream: true });
+          render(root, notice, answer, true);
+        }
+        render(root, notice, answer, false);
+        history.push({ role: "assistant", content: splitErrors(answer).lang || "(no answer)" });
+      } catch (err) {
+        notice.textContent = `Request failed: ${err}`;
+        history.pop();
+      } finally {
+        send.disabled = false;
+        window.scrollTo(0, document.body.scrollHeight);
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || send.disabled) return;
+      input.value = "";
+      ask(text);
+    });
+  </script>
+</body>
+</html>

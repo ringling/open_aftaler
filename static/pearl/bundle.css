@@ -1,0 +1,110 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap");
+
+.pearl-ground {
+  background: linear-gradient(155deg, var(--ground-top) 0%, var(--ground-mid) 38%, var(--ground-lilac) 68%, var(--ground-sage) 100%);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+.pearl-deboss { text-shadow: var(--deboss-text); }
+
+.pearl-card {
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--engrave-hairline);
+  padding: var(--space-5);
+}
+
+.pearl-well {
+  background: var(--well);
+  box-shadow: var(--well-inset);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.pearl-glass {
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.pearl-glass--lit {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow);
+}
+
+.pearl-btn {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--ground-mid);
+  color: var(--ink);
+  box-shadow: var(--raised);
+  text-shadow: var(--deboss-text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pearl-btn:active { box-shadow: var(--well-inset); }
+.pearl-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pearl-btn--accent { background: var(--accent); color: var(--on-accent); text-shadow: none; }
+
+.pearl-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--well);
+  box-shadow: var(--well-inset);
+  font-size: 15px;
+  color: var(--ink);
+  text-shadow: var(--deboss-text);
+}
+.pearl-tag--accent { color: var(--accent); }
+
+.pearl-legend {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  box-shadow: var(--engrave-hairline);
+  font-size: 16px;
+  color: var(--ink);
+}
+.pearl-legend__row { display: flex; align-items: center; gap: var(--space-3); }
+.pearl-legend__foot { font-size: 14px; color: var(--ink-muted); padding-top: var(--space-2); border-top: 1px solid var(--shade); box-shadow: inset 0 1px 0 var(--highlight); }
+
+.pearl-stat { display: flex; flex-direction: column; gap: var(--space-1); }
+.pearl-stat__figure { font-size: 52px; line-height: 56px; font-weight: 300; letter-spacing: -0.01em; color: var(--accent); text-shadow: var(--deboss-text); }
+.pearl-stat__caption { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); }
+
+.pearl-engrave {
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-md);
+  box-shadow: var(--engrave-hairline);
+  padding: var(--space-4) var(--space-5);
+}
+.pearl-engrave--square { border-radius: 2px; }
+.pearl-rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: var(--engrave);
+  box-shadow: var(--engrave-rule);
+}
+
+.pearl-chart-card { margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.pearl-chart-card figcaption { font-size: 17px; line-height: 22px; font-weight: 400; color: var(--ink); text-shadow: var(--deboss-text); }

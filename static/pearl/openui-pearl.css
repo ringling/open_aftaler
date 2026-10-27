@@ -1,0 +1,93 @@
+/* Point OpenUI's theme variables at Pearl tokens, so generated components follow
+   the Pearl / Glass themes. Pearl tokens switch with data-theme (see tokens.css).
+   Selector matches OpenUI's own specificity and wins because this file loads later. */
+:root[data-theme] {
+  /* Surfaces: cards have no fill on Pearl; the ground shows through. */
+  --openui-background: transparent;
+  --openui-foreground: transparent;
+  --openui-popover-background: var(--ground-top);
+  --openui-sunk-light: var(--well);
+  --openui-sunk: var(--well);
+  --openui-sunk-deep: var(--well);
+  --openui-chat-user-response-bg: var(--well);
+  --openui-chat-user-response-text: var(--ink);
+
+  /* Text */
+  --openui-text-neutral-primary: var(--ink);
+  --openui-text-neutral-secondary: var(--ink-muted);
+  --openui-text-neutral-link: var(--accent);
+  --openui-text-brand: var(--accent);
+  --openui-text-accent-primary: var(--on-accent);
+
+  /* The one accent */
+  --openui-interactive-accent-default: var(--accent);
+  --openui-interactive-accent-pressed: var(--accent);
+  --openui-interactive-accent-hover: color-mix(in oklab, var(--accent) 85%, transparent);
+  --openui-interactive-accent-disabled: color-mix(in oklab, var(--accent) 40%, transparent);
+  --openui-border-accent: var(--accent-soft);
+  --openui-border-accent-emphasis: var(--accent);
+  --openui-border-interactive-selected: var(--accent);
+
+  /* Lines are engraved hairlines */
+  --openui-border-default: var(--divider);
+  --openui-border-interactive: var(--divider);
+  --openui-border-interactive-emphasis: var(--engrave);
+  --openui-shadow-s: var(--engrave-hairline);
+  --openui-shadow-m: var(--engrave-hairline);
+
+  /* Type: Outfit, lighter weights */
+  --openui-font-body: var(--font-sans);
+  --openui-font-heading: var(--font-sans);
+  --openui-font-label: var(--font-sans);
+  --openui-font-numbers: var(--font-sans);
+  --openui-font-weight-medium: 500;
+  --openui-font-weight-bold: 500;
+  --openui-font-weight-heavy: 500;
+  --openui-text-body-xs: 400 12px/1.5 var(--font-sans);
+  --openui-text-body-xs-heavy: 500 12px/1.5 var(--font-sans);
+  --openui-text-body-sm: 400 14px/1.5 var(--font-sans);
+  --openui-text-body-sm-heavy: 500 14px/1.5 var(--font-sans);
+  --openui-text-body-default: 400 16px/1.5 var(--font-sans);
+  --openui-text-body-default-heavy: 500 16px/1.5 var(--font-sans);
+  --openui-text-body-lg: 400 18px/1.5 var(--font-sans);
+  --openui-text-body-lg-heavy: 500 18px/1.5 var(--font-sans);
+  --openui-text-heading-xs: 400 16px/1.25 var(--font-sans);
+  --openui-text-heading-sm: 400 18px/1.25 var(--font-sans);
+  --openui-text-heading-md: 400 24px/1.1 var(--font-sans);
+  --openui-text-heading-lg: 400 28px/1.1 var(--font-sans);
+  --openui-text-heading-xl: 400 32px/1.1 var(--font-sans);
+  --openui-text-label-xs: 400 12px/1.25 var(--font-sans);
+  --openui-text-label-xs-heavy: 500 12px/1.25 var(--font-sans);
+  --openui-text-label-sm: 400 14px/1.25 var(--font-sans);
+  --openui-text-label-sm-heavy: 500 14px/1.25 var(--font-sans);
+  --openui-text-label-default: 400 16px/1.25 var(--font-sans);
+  --openui-text-label-default-heavy: 500 16px/1.25 var(--font-sans);
+  --openui-text-label-lg: 400 18px/1.25 var(--font-sans);
+  --openui-text-label-lg-heavy: 500 18px/1.25 var(--font-sans);
+  --openui-text-numbers-xs: 400 12px/1.5 var(--font-sans);
+  --openui-text-numbers-xs-heavy: 500 12px/1.5 var(--font-sans);
+  --openui-text-numbers-sm: 400 14px/1.5 var(--font-sans);
+  --openui-text-numbers-sm-heavy: 500 14px/1.5 var(--font-sans);
+  --openui-text-numbers-default: 400 16px/1.5 var(--font-sans);
+  --openui-text-numbers-default-heavy: 500 16px/1.5 var(--font-sans);
+  --openui-text-numbers-lg: 400 18px/1.5 var(--font-sans);
+  --openui-text-numbers-lg-heavy: 500 18px/1.5 var(--font-sans);
+  --openui-text-numbers-heading-sm: 400 18px/1.25 var(--font-sans);
+  --openui-text-numbers-heading-md: 400 24px/1.1 var(--font-sans);
+  --openui-text-numbers-heading-lg: 400 28px/1.1 var(--font-sans);
+  --openui-text-numbers-heading-xl: 400 32px/1.1 var(--font-sans);
+}
+
+/* Buttons are raised pills (pearl-btn); only primary takes the accent. */
+:root[data-theme] .openui-button-base {
+  width: auto;
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  box-shadow: var(--raised);
+}
+:root[data-theme] .openui-button-base:active { box-shadow: var(--well-inset); }
+:root[data-theme] .openui-button-base:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
