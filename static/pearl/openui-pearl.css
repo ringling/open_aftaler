@@ -91,3 +91,105 @@
 }
 :root[data-theme] .openui-button-base:active { box-shadow: var(--well-inset); }
 :root[data-theme] .openui-button-base:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Chart series colors. OpenUI picks chart colors from a built-in blue palette in JS
+   (there is no theme hook in the browser bundle), so recolor each series by position.
+   Series 1 is the accent, so a single-series chart carries Pearl's one accent. */
+:root[data-theme] {
+  --pearl-series-1: var(--accent);
+  --pearl-series-2: var(--accent-ink);
+  --pearl-series-3: var(--accent-violet);
+  --pearl-series-4: var(--ink-muted);
+  --pearl-series-5: color-mix(in oklab, var(--accent) 45%, var(--ground-mid));
+  --pearl-series-6: color-mix(in oklab, var(--accent-ink) 45%, var(--ground-mid));
+}
+/* series 1 */
+.openui-pie-chart-svg-wrapper svg > g > g > g:nth-child(6n+1) path[fill^='#'] { fill: var(--pearl-series-1); }
+.openui-radial-chart-svg-wrapper svg > g > g > path:nth-child(6n+1) { fill: var(--pearl-series-1); }
+.openui-bar-chart-bars > g > g:nth-child(6n+1) > .openui-bar-chart-bar { fill: var(--pearl-series-1); }
+.openui-horizontal-bar-chart-row > g:nth-child(6n+1 of :has(> .openui-horizontal-bar-chart-bar)) > .openui-horizontal-bar-chart-bar { fill: var(--pearl-series-1); }
+.openui-line-chart-lines > g:nth-child(6n+1) > .openui-line-chart-line { stroke: var(--pearl-series-1); }
+.openui-area-chart-areas > g:nth-child(6n+1) > .openui-area-chart-area-line { stroke: var(--pearl-series-1); }
+:is(.openui-line-chart-crosshair, .openui-area-chart-crosshair, .openui-radar-chart-active-dots) > g:nth-child(6n+1) :is(.openui-line-chart-active-dot-inner, .openui-area-chart-active-dot-inner, .openui-radar-chart-active-dot-inner) { fill: var(--pearl-series-1); }
+.openui-radar-chart-series > g:nth-child(6n+1) > .openui-radar-chart-polygon-area { fill: var(--pearl-series-1); }
+.openui-radar-chart-series > g:nth-child(6n+1) > .openui-radar-chart-polygon-stroke { stroke: var(--pearl-series-1); }
+.openui-scatter-chart-dots > g:nth-child(6n+1) > .openui-scatter-chart-dot { fill: var(--pearl-series-1); }
+.openui-stacked-legend__item:nth-child(6n+1) .openui-stacked-legend__item-color,
+.openui-chart-legend-item:nth-child(6n+1) .openui-chart-legend-item-indicator,
+.openui-segmented-bar-segment:nth-child(6n+1) { background-color: var(--pearl-series-1) !important; }
+.openui-area-chart-container linearGradient[id$="-tk-0"] stop, .openui-area-chart-container linearGradient[id$="-tk-6"] stop { stop-color: var(--pearl-series-1); }
+/* series 2 */
+.openui-pie-chart-svg-wrapper svg > g > g > g:nth-child(6n+2) path[fill^='#'] { fill: var(--pearl-series-2); }
+.openui-radial-chart-svg-wrapper svg > g > g > path:nth-child(6n+2) { fill: var(--pearl-series-2); }
+.openui-bar-chart-bars > g > g:nth-child(6n+2) > .openui-bar-chart-bar { fill: var(--pearl-series-2); }
+.openui-horizontal-bar-chart-row > g:nth-child(6n+2 of :has(> .openui-horizontal-bar-chart-bar)) > .openui-horizontal-bar-chart-bar { fill: var(--pearl-series-2); }
+.openui-line-chart-lines > g:nth-child(6n+2) > .openui-line-chart-line { stroke: var(--pearl-series-2); }
+.openui-area-chart-areas > g:nth-child(6n+2) > .openui-area-chart-area-line { stroke: var(--pearl-series-2); }
+:is(.openui-line-chart-crosshair, .openui-area-chart-crosshair, .openui-radar-chart-active-dots) > g:nth-child(6n+2) :is(.openui-line-chart-active-dot-inner, .openui-area-chart-active-dot-inner, .openui-radar-chart-active-dot-inner) { fill: var(--pearl-series-2); }
+.openui-radar-chart-series > g:nth-child(6n+2) > .openui-radar-chart-polygon-area { fill: var(--pearl-series-2); }
+.openui-radar-chart-series > g:nth-child(6n+2) > .openui-radar-chart-polygon-stroke { stroke: var(--pearl-series-2); }
+.openui-scatter-chart-dots > g:nth-child(6n+2) > .openui-scatter-chart-dot { fill: var(--pearl-series-2); }
+.openui-stacked-legend__item:nth-child(6n+2) .openui-stacked-legend__item-color,
+.openui-chart-legend-item:nth-child(6n+2) .openui-chart-legend-item-indicator,
+.openui-segmented-bar-segment:nth-child(6n+2) { background-color: var(--pearl-series-2) !important; }
+.openui-area-chart-container linearGradient[id$="-tk-1"] stop, .openui-area-chart-container linearGradient[id$="-tk-7"] stop { stop-color: var(--pearl-series-2); }
+/* series 3 */
+.openui-pie-chart-svg-wrapper svg > g > g > g:nth-child(6n+3) path[fill^='#'] { fill: var(--pearl-series-3); }
+.openui-radial-chart-svg-wrapper svg > g > g > path:nth-child(6n+3) { fill: var(--pearl-series-3); }
+.openui-bar-chart-bars > g > g:nth-child(6n+3) > .openui-bar-chart-bar { fill: var(--pearl-series-3); }
+.openui-horizontal-bar-chart-row > g:nth-child(6n+3 of :has(> .openui-horizontal-bar-chart-bar)) > .openui-horizontal-bar-chart-bar { fill: var(--pearl-series-3); }
+.openui-line-chart-lines > g:nth-child(6n+3) > .openui-line-chart-line { stroke: var(--pearl-series-3); }
+.openui-area-chart-areas > g:nth-child(6n+3) > .openui-area-chart-area-line { stroke: var(--pearl-series-3); }
+:is(.openui-line-chart-crosshair, .openui-area-chart-crosshair, .openui-radar-chart-active-dots) > g:nth-child(6n+3) :is(.openui-line-chart-active-dot-inner, .openui-area-chart-active-dot-inner, .openui-radar-chart-active-dot-inner) { fill: var(--pearl-series-3); }
+.openui-radar-chart-series > g:nth-child(6n+3) > .openui-radar-chart-polygon-area { fill: var(--pearl-series-3); }
+.openui-radar-chart-series > g:nth-child(6n+3) > .openui-radar-chart-polygon-stroke { stroke: var(--pearl-series-3); }
+.openui-scatter-chart-dots > g:nth-child(6n+3) > .openui-scatter-chart-dot { fill: var(--pearl-series-3); }
+.openui-stacked-legend__item:nth-child(6n+3) .openui-stacked-legend__item-color,
+.openui-chart-legend-item:nth-child(6n+3) .openui-chart-legend-item-indicator,
+.openui-segmented-bar-segment:nth-child(6n+3) { background-color: var(--pearl-series-3) !important; }
+.openui-area-chart-container linearGradient[id$="-tk-2"] stop, .openui-area-chart-container linearGradient[id$="-tk-8"] stop { stop-color: var(--pearl-series-3); }
+/* series 4 */
+.openui-pie-chart-svg-wrapper svg > g > g > g:nth-child(6n+4) path[fill^='#'] { fill: var(--pearl-series-4); }
+.openui-radial-chart-svg-wrapper svg > g > g > path:nth-child(6n+4) { fill: var(--pearl-series-4); }
+.openui-bar-chart-bars > g > g:nth-child(6n+4) > .openui-bar-chart-bar { fill: var(--pearl-series-4); }
+.openui-horizontal-bar-chart-row > g:nth-child(6n+4 of :has(> .openui-horizontal-bar-chart-bar)) > .openui-horizontal-bar-chart-bar { fill: var(--pearl-series-4); }
+.openui-line-chart-lines > g:nth-child(6n+4) > .openui-line-chart-line { stroke: var(--pearl-series-4); }
+.openui-area-chart-areas > g:nth-child(6n+4) > .openui-area-chart-area-line { stroke: var(--pearl-series-4); }
+:is(.openui-line-chart-crosshair, .openui-area-chart-crosshair, .openui-radar-chart-active-dots) > g:nth-child(6n+4) :is(.openui-line-chart-active-dot-inner, .openui-area-chart-active-dot-inner, .openui-radar-chart-active-dot-inner) { fill: var(--pearl-series-4); }
+.openui-radar-chart-series > g:nth-child(6n+4) > .openui-radar-chart-polygon-area { fill: var(--pearl-series-4); }
+.openui-radar-chart-series > g:nth-child(6n+4) > .openui-radar-chart-polygon-stroke { stroke: var(--pearl-series-4); }
+.openui-scatter-chart-dots > g:nth-child(6n+4) > .openui-scatter-chart-dot { fill: var(--pearl-series-4); }
+.openui-stacked-legend__item:nth-child(6n+4) .openui-stacked-legend__item-color,
+.openui-chart-legend-item:nth-child(6n+4) .openui-chart-legend-item-indicator,
+.openui-segmented-bar-segment:nth-child(6n+4) { background-color: var(--pearl-series-4) !important; }
+.openui-area-chart-container linearGradient[id$="-tk-3"] stop, .openui-area-chart-container linearGradient[id$="-tk-9"] stop { stop-color: var(--pearl-series-4); }
+/* series 5 */
+.openui-pie-chart-svg-wrapper svg > g > g > g:nth-child(6n+5) path[fill^='#'] { fill: var(--pearl-series-5); }
+.openui-radial-chart-svg-wrapper svg > g > g > path:nth-child(6n+5) { fill: var(--pearl-series-5); }
+.openui-bar-chart-bars > g > g:nth-child(6n+5) > .openui-bar-chart-bar { fill: var(--pearl-series-5); }
+.openui-horizontal-bar-chart-row > g:nth-child(6n+5 of :has(> .openui-horizontal-bar-chart-bar)) > .openui-horizontal-bar-chart-bar { fill: var(--pearl-series-5); }
+.openui-line-chart-lines > g:nth-child(6n+5) > .openui-line-chart-line { stroke: var(--pearl-series-5); }
+.openui-area-chart-areas > g:nth-child(6n+5) > .openui-area-chart-area-line { stroke: var(--pearl-series-5); }
+:is(.openui-line-chart-crosshair, .openui-area-chart-crosshair, .openui-radar-chart-active-dots) > g:nth-child(6n+5) :is(.openui-line-chart-active-dot-inner, .openui-area-chart-active-dot-inner, .openui-radar-chart-active-dot-inner) { fill: var(--pearl-series-5); }
+.openui-radar-chart-series > g:nth-child(6n+5) > .openui-radar-chart-polygon-area { fill: var(--pearl-series-5); }
+.openui-radar-chart-series > g:nth-child(6n+5) > .openui-radar-chart-polygon-stroke { stroke: var(--pearl-series-5); }
+.openui-scatter-chart-dots > g:nth-child(6n+5) > .openui-scatter-chart-dot { fill: var(--pearl-series-5); }
+.openui-stacked-legend__item:nth-child(6n+5) .openui-stacked-legend__item-color,
+.openui-chart-legend-item:nth-child(6n+5) .openui-chart-legend-item-indicator,
+.openui-segmented-bar-segment:nth-child(6n+5) { background-color: var(--pearl-series-5) !important; }
+.openui-area-chart-container linearGradient[id$="-tk-4"] stop, .openui-area-chart-container linearGradient[id$="-tk-10"] stop { stop-color: var(--pearl-series-5); }
+/* series 6 */
+.openui-pie-chart-svg-wrapper svg > g > g > g:nth-child(6n+6) path[fill^='#'] { fill: var(--pearl-series-6); }
+.openui-radial-chart-svg-wrapper svg > g > g > path:nth-child(6n+6) { fill: var(--pearl-series-6); }
+.openui-bar-chart-bars > g > g:nth-child(6n+6) > .openui-bar-chart-bar { fill: var(--pearl-series-6); }
+.openui-horizontal-bar-chart-row > g:nth-child(6n+6 of :has(> .openui-horizontal-bar-chart-bar)) > .openui-horizontal-bar-chart-bar { fill: var(--pearl-series-6); }
+.openui-line-chart-lines > g:nth-child(6n+6) > .openui-line-chart-line { stroke: var(--pearl-series-6); }
+.openui-area-chart-areas > g:nth-child(6n+6) > .openui-area-chart-area-line { stroke: var(--pearl-series-6); }
+:is(.openui-line-chart-crosshair, .openui-area-chart-crosshair, .openui-radar-chart-active-dots) > g:nth-child(6n+6) :is(.openui-line-chart-active-dot-inner, .openui-area-chart-active-dot-inner, .openui-radar-chart-active-dot-inner) { fill: var(--pearl-series-6); }
+.openui-radar-chart-series > g:nth-child(6n+6) > .openui-radar-chart-polygon-area { fill: var(--pearl-series-6); }
+.openui-radar-chart-series > g:nth-child(6n+6) > .openui-radar-chart-polygon-stroke { stroke: var(--pearl-series-6); }
+.openui-scatter-chart-dots > g:nth-child(6n+6) > .openui-scatter-chart-dot { fill: var(--pearl-series-6); }
+.openui-stacked-legend__item:nth-child(6n+6) .openui-stacked-legend__item-color,
+.openui-chart-legend-item:nth-child(6n+6) .openui-chart-legend-item-indicator,
+.openui-segmented-bar-segment:nth-child(6n+6) { background-color: var(--pearl-series-6) !important; }
+.openui-area-chart-container linearGradient[id$="-tk-5"] stop, .openui-area-chart-container linearGradient[id$="-tk-11"] stop { stop-color: var(--pearl-series-6); }

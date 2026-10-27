@@ -11,6 +11,7 @@ There are three parts:
 | Browser page | `static/index.html` | Builds the system prompt, sends messages, renders replies, handles clicks |
 | Python server | `main.py` | Forwards the conversation to Claude, streams the text back, and runs tools |
 | Tools | `tools.py` | Example tools (a task list) that generated UI can read and change |
+| Custom components | `static/components.js` | Example components (`Stats`, `Stat`) added to OpenUI's built-in library |
 | Claude | `claude-opus-5-5` | Writes the reply in OpenUI Lang |
 
 The renderer and the component library come from OpenUI's prebuilt browser bundle
@@ -19,6 +20,8 @@ The renderer and the component library come from OpenUI's prebuilt browser bundl
 ```js
 const { React, createRoot, Renderer, openuiChatLibrary } = window.__OpenUI;
 ```
+
+For one real exchange with the full prompt and response, see [prompt-example.md](prompt-example.md).
 
 ## The whole round trip
 
@@ -206,6 +209,73 @@ sequenceDiagram
 3. Restart the server and reload the page. The page picks the tool up from `/api/tools`, so no
    frontend change is needed.
 
+## Components: what Claude can draw
+
+Claude can only use components that are in the **library**, because the library is what
+`prompt()` describes to it. This app uses OpenUI's built-in chat library (about 60 components,
+such as `Card`, `Table`, `BarChart` and `Form`) extended with its own components in
+`static/components.js`.
+
+A component has four parts:
+
+| Part | Purpose |
+| --- | --- |
+| `name` | What Claude writes in OpenUI Lang, for example `Stat(...)` |
+| `description` | Goes in the system prompt and tells Claude when to use it |
+| `props` | A Zod schema. Key order is the argument order in OpenUI Lang |
+| `component` | A React function that gets `{props, renderNode}` and returns the element |
+
+The example adds two components that use Pearl's `pearl-stat` style:
+
+```js
+const Stat = defineComponent({
+  name: "Stat",
+  description: "A headline number and a short caption saying what it measures. Use inside Stats.",
+  props: z.object({ figure: z.string(), caption: z.string() }),
+  component: ({ props }) => /* accent figure + muted caption */,
+});
+
+const Stats = defineComponent({
+  name: "Stats",
+  description: "A row of key figures. Lead with these when an answer is about numbers.",
+  props: z.object({ items: z.array(Stat.ref) }),   // children must be Stat components
+  component: ({ props, renderNode }) => h("div", { className: "stats-row" }, renderNode(props.items)),
+});
+
+export const library = openuiChatLibrary.extend({
+  components: { add: [{ component: Stats, slots: ["Card.children"] }, Stat] },
+});
+```
+
+- `Stat.ref` lets another schema accept `Stat` components as children. `renderNode` renders
+  those children, including ones that are still streaming in.
+- `slots: ["Card.children"]` lets `Stats` appear inside a `Card`. `Stat` is added without a
+  slot, so it is only used inside `Stats`.
+- `extend` returns a new library and leaves the built-in one unchanged. It can also `override`
+  or `remove` built-in components.
+
+The system prompt then lists `Stats(items: Stat[])` and `Stat(figure: string, caption: string)`,
+and Claude can write:
+
+```text
+stats = Stats([s1, s2])
+s1 = Stat("2", "open tasks")
+s2 = Stat("67%", "still open")
+```
+
+**Why `defineComponent` is replicated:** the browser bundle only exports `React`,
+`createRoot`, `Renderer` and `openuiChatLibrary`. So `components.js` loads Zod from jsDelivr at
+the version the bundle uses (4.4.3), and defines `defineComponent` the same way OpenUI does
+(`{...def, ref: def.props}`). With a build step you would import both from
+`@openuidev/react-lang` and `zod` instead.
+
+### Adding your own component
+
+1. Define it in `static/components.js` with `defineComponent`.
+2. Add it to the `extend` call. Give it a slot (such as `"Card.children"`) if it should appear
+   inside built-in components.
+3. Reload the page. The new component is in the system prompt from the next message on.
+
 ## Styling and themes
 
 The page and the generated components both use the Pearl design system (`static/pearl/`):
@@ -214,6 +284,11 @@ The page and the generated components both use the Pearl design system (`static/
   generated from `tokens.json` by `scripts/build_pearl_tokens.py`.
 - `openui-pearl.css` points OpenUI's own theme variables (`--openui-*`) at those tokens. It also
   styles OpenUI buttons as Pearl's raised pills.
+- **Chart colors** are set by position in `openui-pearl.css`. OpenUI picks chart colors from a
+  built-in blue palette in JavaScript, and the browser bundle has no way to change it, so the CSS
+  recolors each series instead: `accent`, `accent-ink`, `accent-violet`, `ink-muted`, then two
+  softer tints. The first series is always the accent. This covers all nine chart types and
+  their legends.
 - The theme toggle sets two attributes on `<html>`:
   - `data-theme` (`pearl` or `glass`) switches Pearl's tokens.
   - `data-openui-theme` (`light` or `dark`) switches OpenUI's own defaults.
@@ -226,6 +301,7 @@ The page and the generated components both use the Pearl design system (`static/
 | --- | --- |
 | The model, effort or error handling | `main.py` |
 | Which tools generated UI can use | `tools.py` |
+| Which custom components Claude can use | `static/components.js` |
 | What Claude is told about style or tone | The `preamble` in `static/index.html` |
 | How clicks are turned into messages | `onAction` in `static/index.html` |
 | How generated components look | `static/pearl/openui-pearl.css` |

@@ -42,6 +42,7 @@
     #input { flex: 1; min-width: 0; border: 0; padding: 12px 18px; font: inherit; color: var(--ink); outline-color: var(--accent); }
     #input::placeholder { color: var(--ink-muted); }
     #send:disabled { opacity: 0.5; cursor: default; }
+    .stats-row { display: flex; flex-wrap: wrap; gap: var(--space-5) var(--space-6); }
   </style>
 </head>
 <body class="pearl-ground">
@@ -60,8 +61,11 @@
     </form>
   </main>
 
-  <script>
-    const { React, createRoot, Renderer, openuiChatLibrary } = window.__OpenUI;
+  <script type="module">
+    import { library } from "/static/components.js";
+
+    // The built-in chat library plus our custom components (see static/components.js).
+    const { React, createRoot, Renderer } = window.__OpenUI;
 
     // Tools are defined in tools.py. The server publishes their specs; the system prompt
     // tells Claude about them, and toolProvider runs Query()/Mutation() calls against
@@ -83,7 +87,7 @@
           };
         }
         // The system prompt teaches Claude OpenUI Lang, the built-in components and the tools.
-        return openuiChatLibrary.prompt({
+        return library.prompt({
           preamble:
             "You are a helpful assistant. Answer every message with a rich, interactive UI. " +
             "Use sentence case, and at most one primary (accent) button per view; make other buttons secondary.",
@@ -125,7 +129,7 @@
 
     function render(root, notice, text, isStreaming) {
       const { lang, errors } = splitErrors(text);
-      root.render(React.createElement(Renderer, { response: lang, library: openuiChatLibrary, isStreaming, onAction, toolProvider }));
+      root.render(React.createElement(Renderer, { response: lang, library, isStreaming, onAction, toolProvider }));
       notice.textContent = errors.join(" ");
     }
 

@@ -1,0 +1,39 @@
+root = Card([header, stats, priorityChart, tasksTable, sep, addHeader, addForm, statusMsg, followUps])
+
+$title = ""
+$priority = "medium"
+
+openTasks = Query("list_tasks", {status: "open"}, {rows: []})
+doneTasks = Query("list_tasks", {status: "done"}, {rows: []})
+addResult = Mutation("add_task", {title: $title, priority: $priority})
+
+header = CardHeader("Open tasks overview", "Your team's current workload at a glance")
+
+stats = Stats([statOpen, statHigh, statMedium, statDone])
+statOpen = Stat("" + @Count(openTasks.rows), "Open tasks")
+statHigh = Stat("" + @Count(@Filter(openTasks.rows, "priority", "==", "high")), "High priority")
+statMedium = Stat("" + @Count(@Filter(openTasks.rows, "priority", "==", "medium")), "Medium priority")
+statDone = Stat("" + @Count(doneTasks.rows), "Completed")
+
+priorityChart = PieChart(["High", "Medium", "Low"], [@Count(@Filter(openTasks.rows, "priority", "==", "high")), @Count(@Filter(openTasks.rows, "priority", "==", "medium")), @Count(@Filter(openTasks.rows, "priority", "==", "low"))], "donut")
+
+tasksTable = Table([colId, colTitle, colPriority])
+colId = Col("ID", openTasks.rows.id, "number")
+colTitle = Col("Task", openTasks.rows.title)
+colPriority = Col("Priority", openTasks.rows.priority)
+
+sep = Separator()
+
+addHeader = InlineHeader("Add a new task", "It will be added to the open list")
+addForm = Form("addTask", addButtons, [titleField, priorityField])
+titleField = FormControl("Title", Input("title", "What needs to be done?", "text", {required: true, minLength: 3, maxLength: 120}, $title))
+priorityField = FormControl("Priority", Select("priority", [SelectItem("low", "Low"), SelectItem("medium", "Medium"), SelectItem("high", "High")], null, {required: true}, $priority))
+addButtons = Buttons([addBtn, refreshBtn])
+addBtn = Button("Add task", Action([@Run(addResult), @Run(openTasks), @Reset($title, $priority)]), "primary")
+refreshBtn = Button("Refresh", Action([@Run(openTasks), @Run(doneTasks)]), "secondary")
+
+statusMsg = addResult.status == "loading" ? TextContent("Adding task...", "small") : addResult.status == "success" ? Callout("success", "Task added", "Your new task is now in the open list.") : addResult.status == "error" ? Callout("error", "Couldn't add task", "" + addResult.error) : null
+
+followUps = FollowUpBlock([fu1, fu2])
+fu1 = FollowUpItem("Show only high priority tasks")
+fu2 = FollowUpItem("Show my completed tasks")

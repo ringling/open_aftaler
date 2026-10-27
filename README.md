@@ -4,6 +4,7 @@ A minimal [Thesys OpenUI](https://openui.com) generative-UI chat. Claude answers
 **OpenUI Lang**, and the browser renders it as live components (cards, tables, charts, forms).
 
 - `main.py`: FastAPI server that streams Claude's reply (`claude-opus-5-5`).
+- `static/components.js`: custom components (`Stats`, `Stat`) added to OpenUI's library.
 - `static/index.html`: chat page that uses the OpenUI CDN bundle (`@openuidev/browser-bundle`). No Node or build step.
 
 ## Run
@@ -24,11 +25,13 @@ Open http://localhost:8000 and try:
 - "Show my open tasks and let me add one" (uses the example tools in `tools.py`)
 
 Clicking generated buttons or submitting generated forms sends a follow-up message. Generated UI
-can also read and change data through **tools** (`tools.py`) without asking Claude again.
+can also read and change data through **tools** (`tools.py`) without asking Claude again, and use
+**custom components** (`static/components.js`) next to OpenUI's built-in ones.
 
 ## How it works
 
 For the full walkthrough, with a sequence diagram, see [docs/openui-flow.md](docs/openui-flow.md).
+For one real request and response, end to end, see [docs/prompt-example.md](docs/prompt-example.md).
 
 1. The page builds the system prompt in the browser with `openuiChatLibrary.prompt(...)`.
    This prompt teaches Claude the OpenUI Lang syntax and the built-in components.
