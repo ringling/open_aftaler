@@ -16,6 +16,10 @@ cp .env.example .env                          # then put your key in .env
 .venv/bin/uvicorn main:app --reload           # or: uv run uvicorn main:app --reload
 ```
 
+**No API key?** The page starts in **manual mode**. Each message shows the full request: copy it
+into any CLI or chat (for example `claude -p`, `codex exec`, `gemini -p` or claude.ai), then paste
+the reply back and click "Render reply". Toggle it any time with the "Manual mode" button.
+
 Open http://localhost:8000 and try:
 
 - "Show a pricing table for 3 plans"

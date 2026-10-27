@@ -43,6 +43,15 @@
     #input::placeholder { color: var(--ink-muted); }
     #send:disabled { opacity: 0.5; cursor: default; }
     .stats-row { display: flex; flex-wrap: wrap; gap: var(--space-5) var(--space-6); }
+    .header-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; justify-content: flex-end; }
+    /* A pressed toggle is a Well, per Pearl. */
+    .pearl-btn[aria-pressed="true"] { background: var(--well); box-shadow: var(--well-inset); }
+    .manual { display: flex; flex-direction: column; gap: var(--space-3); }
+    .manual-title { font-size: 17px; line-height: 22px; color: var(--ink); text-shadow: var(--deboss-text); }
+    .manual-hint { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); }
+    .manual textarea { box-sizing: border-box; width: 100%; height: 160px; resize: vertical; border: 0; padding: 12px 16px;
+      font: 13px/19px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); outline-color: var(--accent); }
+    .manual-actions { display: flex; gap: var(--space-3); }
   </style>
 </head>
 <body class="pearl-ground">
@@ -52,7 +61,10 @@
         <div class="kicker">OpenUI → Claude</div>
         <h1>Ask for an interface</h1>
       </div>
-      <button id="theme" class="pearl-btn" type="button"></button>
+      <div class="header-actions">
+        <button id="mode" class="pearl-btn" type="button" aria-pressed="false">Manual mode</button>
+        <button id="theme" class="pearl-btn" type="button"></button>
+      </div>
     </header>
     <div id="chat"></div>
     <form id="form" class="pearl-glass">
@@ -113,6 +125,21 @@
     });
     showTheme();
 
+    // Manual mode: instead of calling Claude through /api/chat, show the full request to copy into
+    // any CLI or chat, and render the reply pasted back. On by default when the server has no API key.
+    const modeBtn = document.getElementById("mode");
+    let manual = false;
+    function setManual(on, save) {
+      manual = on;
+      modeBtn.setAttribute("aria-pressed", String(on));
+      if (save) try { localStorage.setItem("mode", on ? "manual" : "api"); } catch {}
+    }
+    modeBtn.addEventListener("click", () => setManual(!manual, true));
+    let savedMode = null;
+    try { savedMode = localStorage.getItem("mode"); } catch {}
+    if (savedMode) setManual(savedMode === "manual", false);
+    else fetch("/api/config").then((r) => r.json()).then((c) => setManual(!c.api, false)).catch(() => {});
+
     function addBubble(cls) {
       const el = document.createElement("div");
       el.className = `msg ${cls}`;
@@ -158,6 +185,7 @@
       const root = createRoot(mount);
 
       send.disabled = true;
+      if (manual) return askManually(bubble, root, notice);
       let answer = "";
       try {
         const systemPrompt = await ready;
@@ -183,6 +211,62 @@
         send.disabled = false;
         window.scrollTo(0, document.body.scrollHeight);
       }
+    }
+
+    // One paste-ready text: CLIs and chat UIs don't all accept a separate system prompt.
+    function buildRequest(systemPrompt) {
+      const conversation = history
+        .map((m) => `${m.role === "user" ? "User" : "Assistant"}:\n${m.content}`)
+        .join("\n\n");
+      return `<instructions>\n${systemPrompt}\n</instructions>\n\n<conversation>\n${conversation}\n</conversation>\n\n` +
+        "Reply to the last user message. Output only OpenUI Lang: no prose, no code fences.";
+    }
+
+    // CLIs often wrap code in a fenced block; use its contents if there is one.
+    function cleanReply(text) {
+      const fenced = text.match(/```[^\n]*\n([\s\S]*?)```/);
+      return (fenced ? fenced[1] : text).trim();
+    }
+
+    async function askManually(bubble, root, notice) {
+      const panel = document.createElement("div");
+      panel.className = "manual";
+      panel.innerHTML = `
+        <div class="manual-title">Manual mode</div>
+        <div class="manual-hint">Copy the request into any CLI or chat (for example <code>claude -p</code>), then paste its reply below.</div>
+        <textarea class="pearl-well manual-request" readonly aria-label="Request"></textarea>
+        <div class="manual-actions"><button class="pearl-btn manual-copy" type="button">Copy request</button></div>
+        <textarea class="pearl-well manual-reply" placeholder="Paste the reply here" aria-label="Reply"></textarea>
+        <div class="manual-actions"><button class="pearl-btn pearl-btn--accent manual-render" type="button">Render reply</button></div>`;
+      bubble.insertBefore(panel, notice);
+      const requestBox = panel.querySelector(".manual-request");
+      const replyBox = panel.querySelector(".manual-reply");
+      const copyBtn = panel.querySelector(".manual-copy");
+      requestBox.value = buildRequest(await ready);
+      window.scrollTo(0, document.body.scrollHeight);
+
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(requestBox.value);
+          copyBtn.textContent = "Copied";
+        } catch {
+          requestBox.select();
+          notice.textContent = "Copying isn't allowed here. The request is selected: press Ctrl+C.";
+        }
+      });
+
+      panel.querySelector(".manual-render").addEventListener("click", () => {
+        const reply = cleanReply(replyBox.value);
+        if (!reply) {
+          notice.textContent = "Paste a reply first.";
+          return;
+        }
+        panel.remove();
+        notice.textContent = "";
+        render(root, notice, reply, false);
+        history.push({ role: "assistant", content: reply });
+        send.disabled = false;
+      });
     }
 
     form.addEventListener("submit", (e) => {

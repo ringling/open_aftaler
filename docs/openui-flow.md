@@ -142,6 +142,40 @@ The page handles it like this:
   `context` and filled-in form values as JSON. That message goes through the same round trip
   as a typed one.
 
+## Manual mode: no API key needed
+
+Manual mode replaces only step 3, the server calling Claude. Everything else stays the same.
+
+- **When it's on:** the page asks `GET /api/config` whether the server has an
+  `ANTHROPIC_API_KEY`, and starts in manual mode if it doesn't. The "Manual mode" button in the
+  header switches it, and the choice is saved in the browser.
+- **The request:** each message opens a panel with one paste-ready text instead of calling
+  `/api/chat`:
+
+  ```text
+  <instructions>
+  ...the same system prompt as in API mode...
+  </instructions>
+
+  <conversation>
+  User:
+  Show my open tasks as a table with a short summary
+  </conversation>
+
+  Reply to the last user message. Output only OpenUI Lang: no prose, no code fences.
+  ```
+
+  The system prompt and the conversation go in one text because CLIs and chat apps don't all
+  accept a separate system prompt.
+- **The reply:** you paste the answer into the panel and click "Render reply".
+  - If it contains a fenced code block, only the block's contents are used, since many CLIs wrap
+    code.
+  - The reply is then rendered and stored in the history exactly like a streamed one.
+  - Tools, custom components and buttons all work as usual, because they run in the browser.
+
+Piping the request into a CLI works too, for example
+`claude -p --tools "" < request.txt`.
+
 ## Tools: live data without asking Claude again
 
 Generated UI can read and change real data through **tools**. Claude writes the calls into

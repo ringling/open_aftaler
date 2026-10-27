@@ -4,6 +4,7 @@ The browser renders Claude's OpenUI Lang output with the OpenUI CDN bundle;
 this server only forwards the conversation to Claude and streams the text back.
 """
 
+import os
 from pathlib import Path
 
 import anthropic
@@ -41,6 +42,12 @@ class ChatRequest(BaseModel):
 @app.get("/")
 async def index():
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/api/config")
+async def config():
+    """Tells the page whether Claude is reachable; without a key it starts in manual mode."""
+    return {"api": bool(os.environ.get("ANTHROPIC_API_KEY"))}
 
 
 @app.post("/api/chat")
