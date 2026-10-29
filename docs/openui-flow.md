@@ -11,6 +11,7 @@ There are three parts:
 | Browser page | `static/index.html` | Builds the system prompt, sends messages, renders replies, handles clicks |
 | Python server | `main.py` | Forwards the conversation to Claude, streams the text back, and runs tools |
 | Tools | `tools.py` | Example tools (a task list) that generated UI can read and change |
+| Storage | `db.py` | SQLite (`data/app.db`): saved views and the example task list |
 | Custom components | `static/components.js` | Example components (`Stats`, `Stat`) added to OpenUI's built-in library |
 | Claude | `claude-opus-5-5` | Writes the reply in OpenUI Lang |
 
@@ -182,8 +183,8 @@ Generated UI can read and change real data through **tools**. Claude writes the 
 its OpenUI Lang. The browser then runs them directly against the server, so loading data or
 saving a form doesn't need another round trip to Claude.
 
-The example tools in `tools.py` manage a small in-memory task list (it resets when the server
-restarts):
+The example tools in `tools.py` manage a small task list, stored in SQLite (`db.py`) so it survives
+restarts:
 
 | Tool | Kind | Does |
 | --- | --- | --- |
@@ -242,6 +243,22 @@ sequenceDiagram
 2. Add it to `TOOLS` with a `description`, an `inputSchema` and an `outputSchema`.
 3. Restart the server and reload the page. The page picks the tool up from `/api/tools`, so no
    frontend change is needed.
+
+## Saved views
+
+A **view** is the OpenUI Lang of one reply. Because the text is the whole UI, saving a view
+means saving that text. Reopening it renders the same UI again, and its `Query()` calls fetch
+fresh data, so a saved task overview shows today's tasks.
+
+- **Save view** under a reply calls `POST /api/views` with `{title, prompt, lang}`. The title is the
+  first `CardHeader` title in the view, or else the start of the prompt.
+- **Saved views** in the header lists them (`GET /api/views`). **Open** loads one
+  (`GET /api/views/{id}`), renders it, and adds it to the conversation history so follow-up
+  messages can refer to it. **Delete** calls `DELETE /api/views/{id}`.
+- `db.py` stores views in a `views` table, and the task list used by the tools in a `tasks` table,
+  in one SQLite file (`data/app.db`, or the path in `APP_DB`). The file and tables are created on
+  start-up, and the task list is seeded with three example tasks when it's empty. `data/` is not
+  committed.
 
 ## Components: what Claude can draw
 

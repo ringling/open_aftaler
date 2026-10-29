@@ -1,4 +1,4 @@
-"""Example UI-side tools for OpenUI: a small in-memory task list.
+"""Example UI-side tools for OpenUI: a small task list, stored in SQLite (db.py).
 
 Generated UI calls these directly from the browser with Query() (read) and
 Mutation() (write), without another round trip to Claude. Each tool's specs are
@@ -6,17 +6,10 @@ published to the page, which puts them in the system prompt and wires them into
 the Renderer's toolProvider.
 """
 
-from itertools import count
+import db
 
 PRIORITIES = ["low", "medium", "high"]
 STATUSES = ["open", "done"]
-
-_ids = count(1)
-TASKS = [
-    {"id": next(_ids), "title": "Write the launch post", "priority": "high", "status": "open"},
-    {"id": next(_ids), "title": "Review pricing page", "priority": "medium", "status": "open"},
-    {"id": next(_ids), "title": "Set up error alerts", "priority": "low", "status": "done"},
-]
 
 TASK_SCHEMA = {
     "type": "object",
@@ -32,7 +25,7 @@ TASK_SCHEMA = {
 def list_tasks(status: str | None = None) -> dict:
     if status not in (None, "", *STATUSES):
         raise ValueError(f"status must be one of {STATUSES}")
-    return {"rows": [t for t in TASKS if not status or t["status"] == status]}
+    return {"rows": db.list_tasks(status or None)}
 
 
 def add_task(title: str, priority: str = "medium") -> dict:
@@ -40,9 +33,7 @@ def add_task(title: str, priority: str = "medium") -> dict:
         raise ValueError("title is required")
     if priority not in PRIORITIES:
         raise ValueError(f"priority must be one of {PRIORITIES}")
-    task = {"id": next(_ids), "title": title.strip(), "priority": priority, "status": "open"}
-    TASKS.append(task)
-    return {"task": task}
+    return {"task": db.add_task(title.strip(), priority)}
 
 
 TOOLS = {

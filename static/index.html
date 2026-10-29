@@ -52,6 +52,15 @@
     .manual textarea { box-sizing: border-box; width: 100%; height: 160px; resize: vertical; border: 0; padding: 12px 16px;
       font: 13px/19px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); outline-color: var(--accent); }
     .manual-actions { display: flex; gap: var(--space-3); }
+    .reply-actions { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
+    .reply-caption { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); }
+    #views { margin-bottom: var(--space-6); }
+    #views[hidden] { display: none; }
+    .views-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+    .views-list li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; }
+    .views-list li + li { border-top: 1px solid var(--shade); box-shadow: inset 0 1px 0 var(--highlight); }
+    .view-text { flex: 1; min-width: 0; }
+    .view-title { font-size: 17px; line-height: 22px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
 <body class="pearl-ground">
@@ -62,10 +71,16 @@
         <h1>Ask for an interface</h1>
       </div>
       <div class="header-actions">
+        <button id="views-toggle" class="pearl-btn" type="button" aria-pressed="false" aria-controls="views">Saved views</button>
         <button id="mode" class="pearl-btn" type="button" aria-pressed="false">Manual mode</button>
         <button id="theme" class="pearl-btn" type="button"></button>
       </div>
     </header>
+    <section id="views" class="pearl-card" hidden aria-label="Saved views">
+      <div class="manual-title">Saved views</div>
+      <div class="manual-hint">Reopening a view renders it again with live data, without asking Claude.</div>
+      <ul class="views-list"></ul>
+    </section>
     <div id="chat"></div>
     <form id="form" class="pearl-glass">
       <input id="input" class="pearl-well" placeholder="Try: show my open tasks and let me add one" autocomplete="off" />
@@ -185,7 +200,7 @@
       const root = createRoot(mount);
 
       send.disabled = true;
-      if (manual) return askManually(bubble, root, notice);
+      if (manual) return askManually(bubble, root, notice, text);
       let answer = "";
       try {
         const systemPrompt = await ready;
@@ -203,7 +218,9 @@
           render(root, notice, answer, true);
         }
         render(root, notice, answer, false);
-        history.push({ role: "assistant", content: splitErrors(answer).lang || "(no answer)" });
+        const lang = splitErrors(answer).lang;
+        history.push({ role: "assistant", content: lang || "(no answer)" });
+        if (lang.trim()) addSaveButton(bubble, notice, text, lang);
       } catch (err) {
         notice.textContent = `Request failed: ${err}`;
         history.pop();
@@ -228,7 +245,7 @@
       return (fenced ? fenced[1] : text).trim();
     }
 
-    async function askManually(bubble, root, notice) {
+    async function askManually(bubble, root, notice, prompt) {
       const panel = document.createElement("div");
       panel.className = "manual";
       panel.innerHTML = `
@@ -265,8 +282,116 @@
         notice.textContent = "";
         render(root, notice, reply, false);
         history.push({ role: "assistant", content: reply });
+        addSaveButton(bubble, notice, prompt, reply);
         send.disabled = false;
       });
+    }
+
+    // Saved views (stored in SQLite by the server). A view is the OpenUI Lang of one reply;
+    // reopening it renders it again, and its Query() calls fetch fresh data.
+
+    // Title: the first CardHeader title in the view, else the prompt that produced it.
+    function viewTitle(lang, prompt) {
+      const m = lang.match(/CardHeader\(\s*"((?:[^"\\]|\\.)*)"/);
+      if (m) try { return JSON.parse(`"${m[1]}"`); } catch {}
+      return prompt.split("\n")[0].slice(0, 80) || "Untitled view";
+    }
+
+    function addReplyActions(bubble, notice) {
+      const row = document.createElement("div");
+      row.className = "reply-actions";
+      bubble.insertBefore(row, notice);
+      return row;
+    }
+
+    function addSaveButton(bubble, notice, prompt, lang) {
+      const btn = document.createElement("button");
+      btn.className = "pearl-btn";
+      btn.type = "button";
+      btn.textContent = "Save view";
+      addReplyActions(bubble, notice).appendChild(btn);
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          const res = await fetch("/api/views", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title: viewTitle(lang, prompt), prompt, lang }),
+          });
+          if (!res.ok) throw new Error((await res.json()).detail ?? res.status);
+          btn.textContent = "Saved";
+          if (!viewsPanel.hidden) loadViews();
+        } catch (err) {
+          btn.disabled = false;
+          notice.textContent = `Couldn't save the view: ${err.message}`;
+        }
+      });
+    }
+
+    const viewsPanel = document.getElementById("views");
+    const viewsList = viewsPanel.querySelector(".views-list");
+    const viewsToggle = document.getElementById("views-toggle");
+
+    viewsToggle.addEventListener("click", () => {
+      viewsPanel.hidden = !viewsPanel.hidden;
+      viewsToggle.setAttribute("aria-pressed", String(!viewsPanel.hidden));
+      if (!viewsPanel.hidden) loadViews();
+    });
+
+    async function loadViews() {
+      const views = await (await fetch("/api/views")).json();
+      viewsList.replaceChildren();
+      if (!views.length) {
+        const empty = document.createElement("li");
+        empty.className = "manual-hint";
+        empty.textContent = "No saved views yet. Use \"Save view\" under a reply.";
+        viewsList.appendChild(empty);
+      }
+      for (const v of views) {
+        const li = document.createElement("li");
+        const text = li.appendChild(document.createElement("div"));
+        text.className = "view-text";
+        const title = text.appendChild(document.createElement("div"));
+        title.className = "view-title";
+        title.textContent = v.title;
+        const meta = text.appendChild(document.createElement("div"));
+        meta.className = "manual-hint";
+        meta.textContent = `${new Date(v.created_at).toLocaleString()}${v.prompt ? ` · ${v.prompt.split("\n")[0]}` : ""}`;
+        const open = li.appendChild(document.createElement("button"));
+        open.className = "pearl-btn";
+        open.type = "button";
+        open.textContent = "Open";
+        open.addEventListener("click", () => openView(v.id));
+        const del = li.appendChild(document.createElement("button"));
+        del.className = "pearl-btn";
+        del.type = "button";
+        del.textContent = "Delete";
+        del.addEventListener("click", async () => {
+          await fetch(`/api/views/${v.id}`, { method: "DELETE" });
+          loadViews();
+        });
+        viewsList.appendChild(li);
+      }
+    }
+
+    async function openView(id) {
+      if (send.disabled) return; // a reply is still in progress
+      const view = await (await fetch(`/api/views/${id}`)).json();
+      // Add it to the conversation, so follow-up messages can refer to it.
+      const text = `Show the saved view "${view.title}"`;
+      history.push({ role: "user", content: text }, { role: "assistant", content: view.lang });
+      addBubble("user pearl-engrave").textContent = text;
+      const bubble = addBubble("assistant pearl-card");
+      const mount = bubble.appendChild(document.createElement("div"));
+      const notice = bubble.appendChild(document.createElement("div"));
+      notice.className = "notice";
+      render(createRoot(mount), notice, view.lang, false);
+      const caption = addReplyActions(bubble, notice).appendChild(document.createElement("div"));
+      caption.className = "reply-caption";
+      caption.textContent = `Saved view · ${new Date(view.created_at).toLocaleString()}`;
+      viewsPanel.hidden = true;
+      viewsToggle.setAttribute("aria-pressed", "false");
+      bubble.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     form.addEventListener("submit", (e) => {

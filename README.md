@@ -4,6 +4,7 @@ A minimal [Thesys OpenUI](https://openui.com) generative-UI chat. Claude answers
 **OpenUI Lang**, and the browser renders it as live components (cards, tables, charts, forms).
 
 - `main.py`: FastAPI server that streams Claude's reply (`claude-opus-5-5`).
+- `db.py`: SQLite storage (`data/app.db`) for saved views and the example task list.
 - `static/components.js`: custom components (`Stats`, `Stat`) added to OpenUI's library.
 - `static/index.html`: chat page that uses the OpenUI CDN bundle (`@openuidev/browser-bundle`). No Node or build step.
 
@@ -31,6 +32,10 @@ Open http://localhost:8000 and try:
 Clicking generated buttons or submitting generated forms sends a follow-up message. Generated UI
 can also read and change data through **tools** (`tools.py`) without asking Claude again, and use
 **custom components** (`static/components.js`) next to OpenUI's built-in ones.
+
+Click **Save view** under a reply to store it. **Saved views** in the header lists them, and opening
+one renders it again with live data, without asking Claude. Views and tasks are kept in SQLite at
+`data/app.db` (set `APP_DB` to use another file).
 
 ## How it works
 

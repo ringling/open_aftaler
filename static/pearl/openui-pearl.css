@@ -2,9 +2,11 @@
    the Pearl / Glass themes. Pearl tokens switch with data-theme (see tokens.css).
    Selector matches OpenUI's own specificity and wins because this file loads later. */
 :root[data-theme] {
-  /* Surfaces: cards have no fill on Pearl; the ground shows through. */
+  /* Surfaces. Cards have no fill on Pearl (the ground shows through), but OpenUI also uses
+     --openui-foreground as the solid surface of floating elements (select dropdowns, tooltips,
+     modals, date pickers, slider/switch thumbs), so it must stay opaque. */
   --openui-background: transparent;
-  --openui-foreground: transparent;
+  --openui-foreground: var(--ground-top);
   --openui-popover-background: var(--ground-top);
   --openui-sunk-light: var(--well);
   --openui-sunk: var(--well);

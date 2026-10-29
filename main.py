@@ -5,15 +5,17 @@ this server only forwards the conversation to Claude and streams the text back.
 """
 
 import os
+import re
 from pathlib import Path
 
 import anthropic
 from dotenv import load_dotenv
 from fastapi import Body, FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import db
 import tools
 
 MODEL = "claude-opus-5-5"
@@ -21,9 +23,26 @@ STATIC = Path(__file__).parent / "static"
 
 load_dotenv(Path(__file__).parent / ".env")  # provides ANTHROPIC_API_KEY
 
+db.init()
+
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.middleware("http")
+async def revalidate_static(request, call_next):
+    """Make browsers check for changed CSS/JS on every load (an unchanged file is a cheap 304)."""
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 client = anthropic.AsyncAnthropic()
+
+
+class NewView(BaseModel):
+    title: str
+    prompt: str = ""
+    lang: str
 
 
 class Message(BaseModel):
@@ -41,7 +60,13 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 async def index():
-    return FileResponse(STATIC / "index.html")
+    """The page, with a version on each /static/ link so browsers never reuse an outdated file."""
+    def versioned(m):
+        path = STATIC / m.group(1)
+        return f"/static/{m.group(1)}?v={int(path.stat().st_mtime)}" if path.is_file() else m.group(0)
+
+    html = (STATIC / "index.html").read_text()
+    return HTMLResponse(re.sub(r"/static/([\w./-]+\.(?:css|js))", versioned, html))
 
 
 @app.get("/api/config")
@@ -95,3 +120,32 @@ async def call_tool(name: str, args: dict = Body(default={})):
         return tool["fn"](**args)
     except (TypeError, ValueError) as e:  # wrong or invalid arguments
         raise HTTPException(400, str(e))
+
+
+@app.get("/api/views")
+async def list_views():
+    """Saved views, newest first (without their OpenUI Lang)."""
+    return db.list_views()
+
+
+@app.get("/api/views/{view_id}")
+async def get_view(view_id: int):
+    view = db.get_view(view_id)
+    if view is None:
+        raise HTTPException(404, "View not found")
+    return view
+
+
+@app.post("/api/views", status_code=201)
+async def save_view(view: NewView):
+    """Save a generated UI so it can be re-rendered later without asking Claude."""
+    if not view.lang.strip():
+        raise HTTPException(400, "lang is required")
+    title = view.title.strip()[:200] or "Untitled view"
+    return db.add_view(title, view.prompt, view.lang)
+
+
+@app.delete("/api/views/{view_id}", status_code=204)
+async def delete_view(view_id: int):
+    if not db.delete_view(view_id):
+        raise HTTPException(404, "View not found")
