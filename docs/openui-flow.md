@@ -285,6 +285,7 @@ fresh data, so a saved task overview shows today's tasks.
 
 - **Save view** under a reply calls `POST /api/views` with `{title, prompt, lang}`. The title is the
   first `CardHeader` title in the view, or else the start of the prompt.
+- **Show code** under a reply or a reopened view shows its OpenUI Lang, with a **Copy** button.
 - **Saved views** in the header lists them (`GET /api/views`). **Open** loads one
   (`GET /api/views/{id}`), renders it, and adds it to the conversation history so follow-up
   messages can refer to it. **Delete** calls `DELETE /api/views/{id}`.

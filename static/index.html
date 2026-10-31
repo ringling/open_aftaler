@@ -64,6 +64,11 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-color: var(--accent); } }
     .reply-actions { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
+    .code-panel { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+    .code-panel[hidden] { display: none; }
+    .code-panel__head { display: flex; justify-content: space-between; align-items: center; }
+    .code-panel__code { margin: 0; padding: 14px 16px; max-height: 420px; overflow: auto; white-space: pre;
+      font: 13px/19px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
     .reply-caption { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); }
     #views { margin-bottom: var(--space-6); }
     #views[hidden] { display: none; }
@@ -306,7 +311,10 @@
         render(root, notice, answer, false);
         const lang = splitErrors(answer).lang;
         history.push({ role: "assistant", content: lang || "(no answer)" });
-        if (lang.trim()) addSaveButton(bubble, notice, text, lang);
+        if (lang.trim()) {
+          addSaveButton(bubble, notice, text, lang);
+          addCodeButton(bubble, notice, lang);
+        }
       } catch (err) {
         notice.textContent = `Request failed: ${err}`;
         history.pop();
@@ -370,6 +378,7 @@
         render(root, notice, reply, false);
         history.push({ role: "assistant", content: reply });
         addSaveButton(bubble, notice, prompt, reply);
+        addCodeButton(bubble, notice, reply);
         send.disabled = false;
       });
     }
@@ -384,11 +393,52 @@
       return prompt.split("\n")[0].slice(0, 80) || "Untitled view";
     }
 
+    // The row of buttons under a reply (one per reply, shared by Save view and Show code).
     function addReplyActions(bubble, notice) {
-      const row = document.createElement("div");
-      row.className = "reply-actions";
-      bubble.insertBefore(row, notice);
+      let row = bubble.querySelector(":scope > .reply-actions");
+      if (!row) {
+        row = document.createElement("div");
+        row.className = "reply-actions";
+        bubble.insertBefore(row, notice);
+      }
       return row;
+    }
+
+    // "Show code" reveals the view's OpenUI Lang under the reply, with a Copy button.
+    function addCodeButton(bubble, notice, lang) {
+      const btn = document.createElement("button");
+      btn.className = "pearl-btn";
+      btn.type = "button";
+      btn.textContent = "Show code";
+      btn.setAttribute("aria-expanded", "false");
+      addReplyActions(bubble, notice).appendChild(btn);
+      let panel = null;
+      btn.addEventListener("click", () => {
+        if (!panel) {
+          panel = document.createElement("div");
+          panel.className = "code-panel";
+          panel.innerHTML = `
+            <div class="code-panel__head"><span class="manual-title">OpenUI Lang</span>
+              <button class="pearl-btn code-copy" type="button">Copy</button></div>
+            <pre class="pearl-well code-panel__code"><code></code></pre>`;
+          panel.querySelector("code").textContent = lang;
+          const copy = panel.querySelector(".code-copy");
+          copy.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(lang);
+              copy.textContent = "Copied";
+            } catch {
+              getSelection().selectAllChildren(panel.querySelector("code"));
+              notice.textContent = "Copying isn't allowed here. The code is selected: press Ctrl+C.";
+            }
+          });
+          bubble.insertBefore(panel, notice);
+        }
+        const open = btn.getAttribute("aria-expanded") !== "true";
+        panel.hidden = !open;
+        btn.textContent = open ? "Hide code" : "Show code";
+        btn.setAttribute("aria-expanded", String(open));
+      });
     }
 
     function addSaveButton(bubble, notice, prompt, lang) {
@@ -473,6 +523,7 @@
       const notice = bubble.appendChild(document.createElement("div"));
       notice.className = "notice";
       render(createRoot(mount), notice, view.lang, false);
+      addCodeButton(bubble, notice, view.lang);
       const caption = addReplyActions(bubble, notice).appendChild(document.createElement("div"));
       caption.className = "reply-caption";
       caption.textContent = `Saved view · ${new Date(view.created_at).toLocaleString()}`;

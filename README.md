@@ -46,7 +46,7 @@ Clicking generated buttons or submitting generated forms sends a follow-up messa
 can also read and change data through **tools** (`tools.py`) without asking Claude again, and use
 **custom components** (`static/components.js`) next to OpenUI's built-in ones.
 
-Click **Save view** under a reply to store it. **Saved views** in the header lists them, and opening
+Click **Show code** under a reply to see its OpenUI Lang, or **Save view** to store it. **Saved views** in the header lists them, and opening
 one renders it again with live data, without asking Claude. Views and tasks are kept in SQLite at
 `data/app.db` (set `APP_DB` to use another file).
 
