@@ -4,6 +4,7 @@ A minimal [Thesys OpenUI](https://openui.com) generative-UI chat. Claude answers
 **OpenUI Lang**, and the browser renders it as live components (cards, tables, charts, forms).
 
 - `main.py`: FastAPI server that streams Claude's reply (`claude-opus-5-5`).
+- `ollama_chat.py`: streams replies from a local Ollama model.
 - `db.py`: SQLite storage (`data/app.db`) for saved views and the example task list.
 - `static/components.js`: custom components (`Stats`, `Stat`) added to OpenUI's library.
 - `static/index.html`: chat page that uses the OpenUI CDN bundle (`@openuidev/browser-bundle`). No Node or build step.
@@ -17,9 +18,18 @@ cp .env.example .env                          # then put your key in .env
 .venv/bin/uvicorn main:app --reload           # or: uv run uvicorn main:app --reload
 ```
 
-**No API key?** The page starts in **manual mode**. Each message shows the full request: copy it
-into any CLI or chat (for example `claude -p`, `codex exec`, `gemini -p` or claude.ai), then paste
-the reply back and click "Render reply". Toggle it any time with the "Manual mode" button.
+**Choose who answers** with the dropdown in the header:
+
+- **Claude**: needs `ANTHROPIC_API_KEY` in `.env`.
+- **Ollama**: any model installed in a local [Ollama](https://ollama.com). Start it with
+  `ollama serve` and install a model, for example `ollama pull qwen2.5-coder:7b`. The installed
+  models appear in the dropdown. Set `OLLAMA_URL` if Ollama isn't on `http://localhost:11434`.
+  Small local models follow the OpenUI format less reliably than Claude.
+- **Manual (copy and paste)**: no key or local model needed. Each message shows the full request:
+  copy it into any CLI or chat (for example `claude -p`, `codex exec`, `gemini -p` or claude.ai),
+  then paste the reply back and click "Render reply".
+
+Without a Claude key, the page starts with the first Ollama model, or with manual mode.
 
 Open http://localhost:8000 and try:
 

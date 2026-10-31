@@ -1,7 +1,7 @@
-"""Minimal OpenUI (Thesys) generative-UI chat backed by Claude.
+"""Minimal OpenUI (Thesys) generative-UI chat backed by Claude or a local Ollama model.
 
-The browser renders Claude's OpenUI Lang output with the OpenUI CDN bundle;
-this server only forwards the conversation to Claude and streams the text back.
+The browser renders the model's OpenUI Lang output with the OpenUI CDN bundle;
+this server only forwards the conversation to the model and streams the text back.
 """
 
 import os
@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import db
+import ollama_chat
 import tools
 
 MODEL = "claude-opus-5-5"
@@ -36,6 +37,8 @@ async def revalidate_static(request, call_next):
     if request.url.path == "/" or request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-cache"
     return response
+
+
 client = anthropic.AsyncAnthropic()
 
 
@@ -56,6 +59,8 @@ class ChatRequest(BaseModel):
     # generate it once and keep it server-side.
     system: str
     messages: list[Message]
+    provider: str = "claude"  # "claude" or "ollama"
+    model: str | None = None  # the Ollama model name
 
 
 @app.get("/")
@@ -71,12 +76,24 @@ async def index():
 
 @app.get("/api/config")
 async def config():
-    """Tells the page whether Claude is reachable; without a key it starts in manual mode."""
-    return {"api": bool(os.environ.get("ANTHROPIC_API_KEY"))}
+    """Which models the page can offer: Claude (if there's a key) and installed Ollama models."""
+    models = await ollama_chat.list_models()
+    return {
+        "api": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "claude_model": MODEL,
+        "ollama": {"running": models is not None, "models": models or [], "url": ollama_chat.OLLAMA_URL},
+        # What the page starts with: "claude", "ollama:<model>" or "manual" (DEFAULT_MODEL in .env).
+        "default": os.environ.get("DEFAULT_MODEL", ""),
+    }
 
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
+    if req.provider == "ollama":
+        return StreamingResponse(chat_ollama(req), media_type="text/plain; charset=utf-8")
+    if req.provider != "claude":
+        raise HTTPException(400, f"Unknown provider: {req.provider}")
+
     async def generate():
         try:
             async with client.beta.messages.stream(
@@ -102,6 +119,17 @@ async def chat(req: ChatRequest):
             yield "\n[error] Could not reach the Claude API."
 
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
+
+
+async def chat_ollama(req: ChatRequest):
+    if not req.model:
+        yield "\n[error] Choose an Ollama model."
+        return
+    try:
+        async for text in ollama_chat.stream_chat(req.model, req.system, [m.model_dump() for m in req.messages]):
+            yield text
+    except ollama_chat.OllamaError as e:
+        yield f"\n[error] {e}"
 
 
 @app.get("/api/tools")

@@ -143,13 +143,40 @@ The page handles it like this:
   `context` and filled-in form values as JSON. That message goes through the same round trip
   as a typed one.
 
+## Choosing the model: Claude, Ollama or manual
+
+The **Answer with** dropdown in the header picks who writes the reply. `GET /api/config` tells the
+page what's available: whether there's an `ANTHROPIC_API_KEY`, and which models a local Ollama has
+installed (from Ollama's `/api/tags`). Unavailable choices are shown but disabled.
+
+- **Which one is selected:** `DEFAULT_MODEL` in `.env` (`claude`, `ollama:<model>` or `manual`) sets
+  the starting choice. A new default takes over once, as soon as it's installed. After that, your own
+  pick in the dropdown is saved in the browser and sticks. While your pick isn't available, the page
+  falls back to Claude, then the first Ollama model, then manual mode, and returns to your pick
+  when it's back.
+- **Staying current:** the list is fetched again whenever you return to the browser tab, so models
+  pulled or removed with `ollama` show up without a reload.
+- **Progress:** while a reply is generated, a spinner shows the model and the elapsed seconds
+  ("Waiting for…" until the first text arrives, then "…is writing").
+
+- **Claude:** `POST /api/chat` with `provider: "claude"`, as described above.
+- **Ollama:** `POST /api/chat` with `provider: "ollama"` and the model name. `ollama_chat.py` sends
+  the same system prompt and history to Ollama's `/api/chat` and streams the text back.
+  - It sets `num_ctx` (default 32768, `OLLAMA_NUM_CTX`). The system prompt alone is about 10k
+    tokens, more than Ollama's default context window, which would otherwise cut it off silently.
+  - Ollama's address is `OLLAMA_URL` (default `http://localhost:11434`). If Ollama isn't
+    running, or the model isn't installed, the reply shows a readable error.
+  - Local models often wrap their answer in a code fence even when told not to, so the page drops
+    fence lines before rendering.
+- **Manual:** no model is called; see the next section.
+
 ## Manual mode: no API key needed
 
 Manual mode replaces only step 3, the server calling Claude. Everything else stays the same.
 
 - **When it's on:** the page asks `GET /api/config` whether the server has an
-  `ANTHROPIC_API_KEY`, and starts in manual mode if it doesn't. The "Manual mode" button in the
-  header switches it, and the choice is saved in the browser.
+  `ANTHROPIC_API_KEY`, and starts in manual mode if there's neither a key nor a local Ollama
+  model. Choose "Manual (copy and paste)" in the **Answer with** dropdown to use it any time.
 - **The request:** each message opens a panel with one paste-ready text instead of calling
   `/api/chat`:
 
