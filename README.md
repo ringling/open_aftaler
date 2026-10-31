@@ -8,9 +8,13 @@ A minimal [Thesys OpenUI](https://openui.com) generative-UI chat. Claude answers
 - `db.py`: SQLite storage (`data/app.db`) for saved views and the example task list.
 - `static/components.js`: custom components added to OpenUI's library: `Stats`, `Meter`, `Timeline`,
   `Facts` and a Kanban `Board`.
-- `examples/views.json`: five built-in example views, written by Claude, that use every component
-  and tool. They appear under **Saved views**.
-- `static/index.html`: chat page that uses the OpenUI CDN bundle (`@openuidev/browser-bundle`). No Node or build step.
+- `examples/views.json`: seven built-in example views, written by Claude, that use every component
+  and tool, including two with interactive filters. They appear under **Saved views**.
+- `examples/gallery.json`: a live sample for every component, written by Claude with
+  `scripts/generate_gallery.py`, shown in the **Gallery** tab.
+- `static/index.html`: the page, using the OpenUI CDN bundle (`@openuidev/browser-bundle`). No Node or
+  build step. Its code is in `static/js/`: `core.js` (shared), `chat.js`, `playground.js`,
+  `gallery.js`, `compare.js` and `main.js` (tabs, theme, model picker).
 
 ## Run
 
@@ -49,6 +53,19 @@ can also read and change data through **tools** (`tools.py`) without asking Clau
 Click **Show code** under a reply to see its OpenUI Lang, or **Save view** to store it. **Saved views** in the header lists them, and opening
 one renders it again with live data, without asking Claude. Views and tasks are kept in SQLite at
 `data/app.db` (set `APP_DB` to use another file).
+
+## Showcase tabs
+
+- **Chat**: ask for a UI and watch it stream in. Each reply has a **usage meter** (tokens, time to
+  first text, tokens per second) and **Compare with JSON**, which counts the same UI as JSON with
+  Claude's tokenizer. Turn on **Live code** to see the code arrive next to the UI as it builds.
+- **Playground**: edit OpenUI Lang and see it render as you type, with parse errors listed.
+  **Replay** streams the code back in slow motion. Open any reply or saved view here with
+  **Open in playground** or **Replay**.
+- **Gallery**: every component the model can use (91), with its signature, description and a live
+  sample, straight from the component library.
+- **Compare**: send one prompt to two models (Claude and Ollama models) and see both UIs side by
+  side, with their meters and which was faster.
 
 ## How it works
 

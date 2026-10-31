@@ -8,7 +8,7 @@ There are three parts:
 
 | Part | File | Job |
 | --- | --- | --- |
-| Browser page | `static/index.html` | Builds the system prompt, sends messages, renders replies, handles clicks |
+| Browser page | `static/index.html` + `static/js/` | Builds the system prompt, sends messages, renders replies, handles clicks |
 | Python server | `main.py` | Forwards the conversation to Claude, streams the text back, and runs tools |
 | Tools | `tools.py` | Example tools (a task list) that generated UI can read and change |
 | Storage | `db.py` | SQLite (`data/app.db`): saved views and the example task list |
@@ -380,6 +380,56 @@ the version the bundle uses (4.4.3), and defines `defineComponent` the same way 
    inside built-in components.
 3. Reload the page. The new component is in the system prompt from the next message on.
 
+## Showcase screens
+
+The page has four tabs (`#/chat`, `#/playground`, `#/gallery`, `#/compare`). Its code is in
+`static/js/`: `core.js` holds what every screen shares (library, tools, `streamReply`, rendering,
+reply buttons, meter), and each tab has its own module, loaded the first time the tab opens.
+
+### Usage meter and the JSON comparison
+
+- After the reply, the server sends one more line, `[meta] {json}`, which the page hides:
+  - for Claude, the `usage` of the final message (input, cached and output tokens);
+  - for Ollama, the counts and durations from its last chunk (`eval_count`, `eval_duration`, ...).
+- The page adds its own timings (time to first text, total) and shows a dimmed line under the
+  reply, e.g. `391 output tokens · first text 1.0 s · 155 tok/s · 15.3k input`.
+- **Compare with JSON** turns the Renderer's parse result (`onParseResult`) into what a JSON-based
+  UI format would need for the same view (`static/js/json-equivalent.js`): components as
+  `{"type", "props"}`, live values as `{"$expr": "..."}`, plus the state, queries and mutations.
+  `POST /api/count-tokens` counts both texts with Claude's tokenizer (`messages.count_tokens`,
+  free). Without an API key it estimates about 4 characters per token and marks the numbers "≈".
+  The JSON is minified, its cheapest form, so the comparison is conservative. In one real reply:
+  OpenUI Lang 389 tokens, the same UI as JSON 709 tokens.
+
+### Live code and replay
+
+- **Live code** (header toggle, Chat tab): while a reply streams in, its code is shown on the left
+  and the UI being built on the right. It collapses to the normal reply when the stream ends.
+- **Replay** (Playground) feeds the code to the Renderer a few characters at a time with
+  `isStreaming` on, at Fast, Normal or Slow-motion speed, exactly like a streamed reply. Replies
+  and saved views have a **Replay** button that opens the Playground and plays them back.
+
+### Playground
+
+Edit OpenUI Lang on the left; the preview re-renders 150 ms after you stop typing, and parse and
+runtime errors from the Renderer's `onError` are listed under it. Load any saved view from the
+dropdown, then Copy, Save view or Replay.
+
+### Gallery
+
+Built from `library.toSpec()`: every component's signature, description and group notes, with
+the app's own components under "Custom". Each has a live sample from `examples/gallery.json`
+(served at `GET /api/gallery`), rendered when it scrolls into view; a sample that reports errors
+is dropped and the card keeps just the signature. `scripts/generate_gallery.py` writes the samples
+with Claude from `examples/system-prompt.txt`; run it again after adding components.
+
+### Compare
+
+One prompt, two models from the same list as the Chat dropdown (manual mode excluded). Both
+stream in parallel, each with a spinner, the result, a meter and Show code. The summary says
+which finished first, the output tokens, and whether each reply parsed cleanly. A side whose
+request fails shows its error without affecting the other.
+
 ## Styling and themes
 
 The page and the generated components both use the Pearl design system (`static/pearl/`):
@@ -404,9 +454,11 @@ The page and the generated components both use the Pearl design system (`static/
 | To change | Edit |
 | --- | --- |
 | The model, effort or error handling | `main.py` |
+| What every screen shares (streaming, rendering, meter) | `static/js/core.js` |
+| Gallery samples | `examples/gallery.json`, regenerate with `scripts/generate_gallery.py` |
 | Which tools generated UI can use | `tools.py` |
 | Which custom components Claude can use | `static/components.js` |
-| What Claude is told about style or tone | The `preamble` in `static/index.html` |
-| How clicks are turned into messages | `onAction` in `static/index.html` |
+| What Claude is told about style or tone | The `preamble` in `static/js/core.js` |
+| How clicks are turned into messages | `onAction` in `static/js/chat.js` |
 | How generated components look | `static/pearl/openui-pearl.css` |
 | Pearl's colors and other tokens | `static/pearl/tokens.json`, then rerun `python scripts/build_pearl_tokens.py` |

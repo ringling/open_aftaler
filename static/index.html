@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/static/pearl/bundle.css" />
   <link rel="stylesheet" href="/static/pearl/openui-pearl.css" />
   <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/showcase.css" />
   <script src="https://cdn.jsdelivr.net/npm/@openuidev/browser-bundle@0.2.1/dist/openui-bundle.min.js"></script>
   <script>
     // Apply the saved theme before first paint: Pearl (light) or Glass (dark).
@@ -31,7 +32,15 @@
     html { background: linear-gradient(155deg, var(--ground-top) 0%, var(--ground-mid) 38%, var(--ground-lilac) 68%, var(--ground-sage) 100%) fixed; }
     body.pearl-ground { margin: 0; min-height: 100vh; background: transparent; font-size: 16px; line-height: 24px; }
     main { max-width: 860px; margin: 0 auto; padding: var(--space-6) var(--space-4) 0; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+    header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+    /* Wider pages for the side-by-side screens. */
+    body:is([data-tab="playground"], [data-tab="compare"], [data-tab="gallery"]) main { max-width: 1280px; }
+    body:not([data-tab="chat"]) .chat-only { display: none; }
+    body[data-tab="chat"][data-live-code] main { max-width: 1280px; }
+    .tab[hidden] { display: none; }
+    .tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-6); }
+    .tabs a { text-decoration: none; }
+    .tabs a[aria-current="page"] { background: var(--well); box-shadow: var(--well-inset); }
     .kicker { font-size: 20px; line-height: 26px; color: var(--ink-muted); text-shadow: var(--deboss-text); }
     h1 { margin: var(--space-1) 0 0; font-size: 32px; line-height: 37px; font-weight: 300; color: var(--ink-display); text-shadow: var(--deboss-text); }
     #chat { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -79,7 +88,7 @@
     .view-title { font-size: 17px; line-height: 22px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
-<body class="pearl-ground">
+<body class="pearl-ground" data-tab="chat">
   <main>
     <header>
       <div>
@@ -87,458 +96,36 @@
         <h1>Ask for an interface</h1>
       </div>
       <div class="header-actions">
-        <button id="views-toggle" class="pearl-btn" type="button" aria-pressed="false" aria-controls="views">Saved views</button>
-        <select id="provider" class="provider-select pearl-well" aria-label="Answer with"></select>
+        <button id="live-toggle" class="pearl-btn chat-only" type="button" aria-pressed="false" title="Show the code next to the UI while a reply streams in">Live code</button>
+        <button id="views-toggle" class="pearl-btn chat-only" type="button" aria-pressed="false" aria-controls="views">Saved views</button>
+        <select id="provider" class="provider-select pearl-well chat-only" aria-label="Answer with"></select>
         <button id="theme" class="pearl-btn" type="button"></button>
       </div>
     </header>
-    <section id="views" class="pearl-card" hidden aria-label="Saved views">
-      <div class="manual-title">Saved views</div>
-      <div class="manual-hint">Reopening a view renders it again with live data, without asking Claude.</div>
-      <ul class="views-list"></ul>
+    <nav class="tabs" aria-label="Screens">
+      <a class="pearl-btn" data-tab="chat" href="#/chat">Chat</a>
+      <a class="pearl-btn" data-tab="playground" href="#/playground">Playground</a>
+      <a class="pearl-btn" data-tab="gallery" href="#/gallery">Gallery</a>
+      <a class="pearl-btn" data-tab="compare" href="#/compare">Compare</a>
+    </nav>
+
+    <section id="tab-chat" class="tab">
+      <section id="views" class="pearl-card" hidden aria-label="Saved views">
+        <div class="manual-title">Saved views</div>
+        <div class="manual-hint">Reopening a view renders it again with live data, without asking Claude.</div>
+        <ul class="views-list"></ul>
+      </section>
+      <div id="chat"></div>
+      <form id="form" class="pearl-glass">
+        <input id="input" class="pearl-well" placeholder="Try: show my open tasks and let me add one" autocomplete="off" />
+        <button id="send" class="pearl-btn pearl-btn--accent">Send</button>
+      </form>
     </section>
-    <div id="chat"></div>
-    <form id="form" class="pearl-glass">
-      <input id="input" class="pearl-well" placeholder="Try: show my open tasks and let me add one" autocomplete="off" />
-      <button id="send" class="pearl-btn pearl-btn--accent">Send</button>
-    </form>
+    <section id="tab-playground" class="tab" hidden aria-label="Playground"></section>
+    <section id="tab-gallery" class="tab" hidden aria-label="Component gallery"></section>
+    <section id="tab-compare" class="tab" hidden aria-label="Compare models"></section>
   </main>
 
-  <script type="module">
-    import { library } from "/static/components.js";
-
-    // The built-in chat library plus our custom components (see static/components.js).
-    const { React, createRoot, Renderer } = window.__OpenUI;
-
-    // Tools are defined in tools.py. The server publishes their specs; the system prompt
-    // tells Claude about them, and toolProvider runs Query()/Mutation() calls against
-    // the server directly, without asking Claude again.
-    const toolProvider = {};
-    const ready = fetch("/api/tools")
-      .then((res) => res.json())
-      .then((tools) => {
-        for (const { name } of tools) {
-          toolProvider[name] = async (args) => {
-            const res = await fetch(`/api/tools/${name}`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(args ?? {}),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail ?? `Tool ${name} failed`);
-            return data;
-          };
-        }
-        // The system prompt teaches Claude OpenUI Lang, the built-in components and the tools.
-        return library.prompt({
-          preamble:
-            "You are a helpful assistant. Answer every message with a rich, interactive UI. " +
-            "Reply with OpenUI Lang only: start directly with the root line, with no text before or after it and no code fences. " +
-            "Use sentence case, and at most one primary (accent) button per view; make other buttons secondary.",
-          tools,
-        });
-      });
-
-    const chat = document.getElementById("chat");
-    const form = document.getElementById("form");
-    const input = document.getElementById("input");
-    const send = document.getElementById("send");
-    const history = [];
-
-    const themeBtn = document.getElementById("theme");
-    function showTheme() {
-      themeBtn.textContent = document.documentElement.dataset.theme === "glass" ? "Light theme" : "Dark theme";
-    }
-    themeBtn.addEventListener("click", () => {
-      const next = document.documentElement.dataset.theme === "glass" ? "light" : "dark";
-      applyTheme(next);
-      try { localStorage.setItem("theme", next); } catch {}
-      showTheme();
-    });
-    showTheme();
-
-    // Who answers: "claude", "ollama:<model>" (a local Ollama model) or "manual" (copy the request
-    // into any CLI or chat and paste the reply back). The server says which are available.
-    const providerSelect = document.getElementById("provider");
-    let provider = "manual";
-    function setProvider(value, save) {
-      provider = value;
-      providerSelect.value = value;
-      if (save) try { localStorage.setItem("provider", value); } catch {}
-    }
-    providerSelect.addEventListener("change", () => setProvider(providerSelect.value, true));
-
-    function addOption(value, label, disabled = false) {
-      const opt = providerSelect.appendChild(document.createElement("option"));
-      opt.value = value;
-      opt.textContent = label;
-      opt.disabled = disabled;
-    }
-
-    // Rebuilds the dropdown from /api/config. Runs on load and again whenever you come back to the
-    // tab, so models pulled or removed in Ollama show up without a reload.
-    let lastConfig = "";
-    async function loadProviders(refresh = false) {
-      let config = { api: false, claude_model: "Claude", ollama: { running: false, models: [] } };
-      try { config = await (await fetch("/api/config")).json(); } catch {}
-      if (refresh && JSON.stringify(config) === lastConfig) return; // nothing changed
-      lastConfig = JSON.stringify(config);
-
-      providerSelect.replaceChildren();
-      addOption("claude", config.api ? `Claude · ${config.claude_model}` : "Claude (no API key)", !config.api);
-      if (!config.ollama.running) addOption("ollama", "Ollama (not running)", true);
-      else if (!config.ollama.models.length) addOption("ollama", "Ollama (no models installed)", true);
-      for (const m of config.ollama.models) addOption(`ollama:${m}`, `Ollama · ${m}`);
-      addOption("manual", "Manual (copy and paste)");
-      const usable = [...providerSelect.options].filter((o) => !o.disabled).map((o) => o.value);
-
-      // Which to select, in order:
-      // 1. A new server default (DEFAULT_MODEL) wins once, as soon as it's actually available.
-      // 2. The choice saved in this browser (every pick in the dropdown is saved).
-      // 3. A fallback: Claude, else the first Ollama model, else manual. A fallback isn't saved, so
-      //    the real choice comes back once it's available again.
-      let saved = null, seenDefault = null;
-      try {
-        saved = localStorage.getItem("provider") ?? (localStorage.getItem("mode") === "manual" ? "manual" : null);
-        seenDefault = localStorage.getItem("providerDefault");
-      } catch {}
-      if (usable.includes(config.default) && seenDefault !== config.default) {
-        try { localStorage.setItem("providerDefault", config.default); } catch {}
-        return setProvider(config.default, true);
-      }
-      if (usable.includes(saved)) return setProvider(saved, false);
-      setProvider(config.api ? "claude" : config.ollama.models.length ? `ollama:${config.ollama.models[0]}` : "manual", false);
-    }
-    loadProviders();
-    window.addEventListener("focus", () => loadProviders(true));
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) loadProviders(true); });
-
-    function addBubble(cls) {
-      const el = document.createElement("div");
-      el.className = `msg ${cls}`;
-      chat.appendChild(el);
-      return el;
-    }
-
-    // Server-side errors arrive as "[error] ..." lines after the OpenUI Lang. Code-fence lines are
-    // dropped too: local models often wrap their answer in ``` even when told not to.
-    function splitErrors(text) {
-      const lines = text.split("\n");
-      const errors = lines.filter((l) => l.startsWith("[error]"));
-      let code = lines.filter((l) => !l.startsWith("[error]") && !/^\s*```/.test(l));
-      // A sentence of explanation before the code makes the whole reply unparseable, so start at "root =".
-      const start = code.findIndex((l) => /^\s*root\s*=/.test(l));
-      if (start > 0) code = code.slice(start);
-      return { lang: code.join("\n"), errors };
-    }
-
-    function render(root, notice, text, isStreaming) {
-      const { lang, errors } = splitErrors(text);
-      root.render(React.createElement(Renderer, { response: lang, library, isStreaming, onAction, toolProvider }));
-      notice.textContent = errors.join(" ");
-    }
-
-    // Clicks on generated buttons/forms send a follow-up message.
-    function onAction(event) {
-      if (event.type === "open_url") return window.open(event.params.url, "_blank", "noopener");
-      if (send.disabled) return;
-      let text = event.humanFriendlyMessage || event.type;
-      if (event.params?.context !== undefined) {
-        text += `\n\nContext: ${JSON.stringify(event.params.context)}`;
-      }
-      if (event.formState && Object.keys(event.formState).length) {
-        text += `\n\nForm values: ${JSON.stringify(event.formState)}`;
-      }
-      ask(text);
-    }
-
-    // A spinner with the model's name and elapsed seconds, shown while a reply is being generated:
-    // "Waiting for <model>…" until the first text arrives, then "<model> is writing…".
-    function showProgress(bubble, notice) {
-      const model = provider.startsWith("ollama:") ? provider.slice(7) : "Claude";
-      const row = document.createElement("div");
-      row.className = "progress";
-      row.setAttribute("role", "status");
-      row.innerHTML = '<span class="spinner" aria-hidden="true"></span><span class="progress-text"></span>';
-      bubble.insertBefore(row, notice);
-      const label = row.querySelector(".progress-text");
-      const started = Date.now();
-      let state = `Waiting for ${model}…`;
-      const tick = () => { label.textContent = `${state} ${Math.floor((Date.now() - started) / 1000)}s`; };
-      tick();
-      const timer = setInterval(tick, 1000);
-      return {
-        writing() { state = `${model} is writing…`; tick(); },
-        stop() { clearInterval(timer); row.remove(); },
-      };
-    }
-
-    async function ask(text) {
-      history.push({ role: "user", content: text });
-      addBubble("user pearl-engrave").textContent = text;
-
-      const bubble = addBubble("assistant pearl-card");
-      const mount = bubble.appendChild(document.createElement("div"));
-      const notice = bubble.appendChild(document.createElement("div"));
-      notice.className = "notice";
-      const root = createRoot(mount);
-
-      send.disabled = true;
-      if (provider === "manual") return askManually(bubble, root, notice, text);
-      let answer = "";
-      const progress = showProgress(bubble, notice);
-      try {
-        const systemPrompt = await ready;
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            system: systemPrompt,
-            messages: history,
-            ...(provider.startsWith("ollama:") ? { provider: "ollama", model: provider.slice(7) } : { provider: "claude" }),
-          }),
-        });
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (!answer) progress.writing();
-          answer += decoder.decode(value, { stream: true });
-          render(root, notice, answer, true);
-        }
-        progress.stop();
-        render(root, notice, answer, false);
-        const lang = splitErrors(answer).lang;
-        history.push({ role: "assistant", content: lang || "(no answer)" });
-        if (lang.trim()) {
-          addSaveButton(bubble, notice, text, lang);
-          addCodeButton(bubble, notice, lang);
-        }
-      } catch (err) {
-        notice.textContent = `Request failed: ${err}`;
-        history.pop();
-      } finally {
-        progress.stop();
-        send.disabled = false;
-        window.scrollTo(0, document.body.scrollHeight);
-      }
-    }
-
-    // One paste-ready text: CLIs and chat UIs don't all accept a separate system prompt.
-    function buildRequest(systemPrompt) {
-      const conversation = history
-        .map((m) => `${m.role === "user" ? "User" : "Assistant"}:\n${m.content}`)
-        .join("\n\n");
-      return `<instructions>\n${systemPrompt}\n</instructions>\n\n<conversation>\n${conversation}\n</conversation>\n\n` +
-        "Reply to the last user message. Output only OpenUI Lang: no prose, no code fences.";
-    }
-
-    // CLIs often wrap code in a fenced block; use its contents if there is one.
-    function cleanReply(text) {
-      const fenced = text.match(/```[^\n]*\n([\s\S]*?)```/);
-      return (fenced ? fenced[1] : text).trim();
-    }
-
-    async function askManually(bubble, root, notice, prompt) {
-      const panel = document.createElement("div");
-      panel.className = "manual";
-      panel.innerHTML = `
-        <div class="manual-title">Manual mode</div>
-        <div class="manual-hint">Copy the request into any CLI or chat (for example <code>claude -p</code>), then paste its reply below.</div>
-        <textarea class="pearl-well manual-request" readonly aria-label="Request"></textarea>
-        <div class="manual-actions"><button class="pearl-btn manual-copy" type="button">Copy request</button></div>
-        <textarea class="pearl-well manual-reply" placeholder="Paste the reply here" aria-label="Reply"></textarea>
-        <div class="manual-actions"><button class="pearl-btn pearl-btn--accent manual-render" type="button">Render reply</button></div>`;
-      bubble.insertBefore(panel, notice);
-      const requestBox = panel.querySelector(".manual-request");
-      const replyBox = panel.querySelector(".manual-reply");
-      const copyBtn = panel.querySelector(".manual-copy");
-      requestBox.value = buildRequest(await ready);
-      window.scrollTo(0, document.body.scrollHeight);
-
-      copyBtn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(requestBox.value);
-          copyBtn.textContent = "Copied";
-        } catch {
-          requestBox.select();
-          notice.textContent = "Copying isn't allowed here. The request is selected: press Ctrl+C.";
-        }
-      });
-
-      panel.querySelector(".manual-render").addEventListener("click", () => {
-        const reply = cleanReply(replyBox.value);
-        if (!reply) {
-          notice.textContent = "Paste a reply first.";
-          return;
-        }
-        panel.remove();
-        notice.textContent = "";
-        render(root, notice, reply, false);
-        history.push({ role: "assistant", content: reply });
-        addSaveButton(bubble, notice, prompt, reply);
-        addCodeButton(bubble, notice, reply);
-        send.disabled = false;
-      });
-    }
-
-    // Saved views (stored in SQLite by the server). A view is the OpenUI Lang of one reply;
-    // reopening it renders it again, and its Query() calls fetch fresh data.
-
-    // Title: the first CardHeader title in the view, else the prompt that produced it.
-    function viewTitle(lang, prompt) {
-      const m = lang.match(/CardHeader\(\s*"((?:[^"\\]|\\.)*)"/);
-      if (m) try { return JSON.parse(`"${m[1]}"`); } catch {}
-      return prompt.split("\n")[0].slice(0, 80) || "Untitled view";
-    }
-
-    // The row of buttons under a reply (one per reply, shared by Save view and Show code).
-    function addReplyActions(bubble, notice) {
-      let row = bubble.querySelector(":scope > .reply-actions");
-      if (!row) {
-        row = document.createElement("div");
-        row.className = "reply-actions";
-        bubble.insertBefore(row, notice);
-      }
-      return row;
-    }
-
-    // "Show code" reveals the view's OpenUI Lang under the reply, with a Copy button.
-    function addCodeButton(bubble, notice, lang) {
-      const btn = document.createElement("button");
-      btn.className = "pearl-btn";
-      btn.type = "button";
-      btn.textContent = "Show code";
-      btn.setAttribute("aria-expanded", "false");
-      addReplyActions(bubble, notice).appendChild(btn);
-      let panel = null;
-      btn.addEventListener("click", () => {
-        if (!panel) {
-          panel = document.createElement("div");
-          panel.className = "code-panel";
-          panel.innerHTML = `
-            <div class="code-panel__head"><span class="manual-title">OpenUI Lang</span>
-              <button class="pearl-btn code-copy" type="button">Copy</button></div>
-            <pre class="pearl-well code-panel__code"><code></code></pre>`;
-          panel.querySelector("code").textContent = lang;
-          const copy = panel.querySelector(".code-copy");
-          copy.addEventListener("click", async () => {
-            try {
-              await navigator.clipboard.writeText(lang);
-              copy.textContent = "Copied";
-            } catch {
-              getSelection().selectAllChildren(panel.querySelector("code"));
-              notice.textContent = "Copying isn't allowed here. The code is selected: press Ctrl+C.";
-            }
-          });
-          bubble.insertBefore(panel, notice);
-        }
-        const open = btn.getAttribute("aria-expanded") !== "true";
-        panel.hidden = !open;
-        btn.textContent = open ? "Hide code" : "Show code";
-        btn.setAttribute("aria-expanded", String(open));
-      });
-    }
-
-    function addSaveButton(bubble, notice, prompt, lang) {
-      const btn = document.createElement("button");
-      btn.className = "pearl-btn";
-      btn.type = "button";
-      btn.textContent = "Save view";
-      addReplyActions(bubble, notice).appendChild(btn);
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        try {
-          const res = await fetch("/api/views", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ title: viewTitle(lang, prompt), prompt, lang }),
-          });
-          if (!res.ok) throw new Error((await res.json()).detail ?? res.status);
-          btn.textContent = "Saved";
-          if (!viewsPanel.hidden) loadViews();
-        } catch (err) {
-          btn.disabled = false;
-          notice.textContent = `Couldn't save the view: ${err.message}`;
-        }
-      });
-    }
-
-    const viewsPanel = document.getElementById("views");
-    const viewsList = viewsPanel.querySelector(".views-list");
-    const viewsToggle = document.getElementById("views-toggle");
-
-    viewsToggle.addEventListener("click", () => {
-      viewsPanel.hidden = !viewsPanel.hidden;
-      viewsToggle.setAttribute("aria-pressed", String(!viewsPanel.hidden));
-      if (!viewsPanel.hidden) loadViews();
-    });
-
-    async function loadViews() {
-      const views = await (await fetch("/api/views")).json();
-      viewsList.replaceChildren();
-      if (!views.length) {
-        const empty = document.createElement("li");
-        empty.className = "manual-hint";
-        empty.textContent = "No saved views yet. Use \"Save view\" under a reply.";
-        viewsList.appendChild(empty);
-      }
-      for (const v of views) {
-        const li = document.createElement("li");
-        const text = li.appendChild(document.createElement("div"));
-        text.className = "view-text";
-        const title = text.appendChild(document.createElement("div"));
-        title.className = "view-title";
-        title.textContent = v.title;
-        const meta = text.appendChild(document.createElement("div"));
-        meta.className = "manual-hint";
-        meta.textContent = `${new Date(v.created_at).toLocaleString()}${v.prompt ? ` · ${v.prompt.split("\n")[0]}` : ""}`;
-        const open = li.appendChild(document.createElement("button"));
-        open.className = "pearl-btn";
-        open.type = "button";
-        open.textContent = "Open";
-        open.addEventListener("click", () => openView(v.id));
-        const del = li.appendChild(document.createElement("button"));
-        del.className = "pearl-btn";
-        del.type = "button";
-        del.textContent = "Delete";
-        del.addEventListener("click", async () => {
-          await fetch(`/api/views/${v.id}`, { method: "DELETE" });
-          loadViews();
-        });
-        viewsList.appendChild(li);
-      }
-    }
-
-    async function openView(id) {
-      if (send.disabled) return; // a reply is still in progress
-      const view = await (await fetch(`/api/views/${id}`)).json();
-      // Add it to the conversation, so follow-up messages can refer to it.
-      const text = `Show the saved view "${view.title}"`;
-      history.push({ role: "user", content: text }, { role: "assistant", content: view.lang });
-      addBubble("user pearl-engrave").textContent = text;
-      const bubble = addBubble("assistant pearl-card");
-      const mount = bubble.appendChild(document.createElement("div"));
-      const notice = bubble.appendChild(document.createElement("div"));
-      notice.className = "notice";
-      render(createRoot(mount), notice, view.lang, false);
-      addCodeButton(bubble, notice, view.lang);
-      const caption = addReplyActions(bubble, notice).appendChild(document.createElement("div"));
-      caption.className = "reply-caption";
-      caption.textContent = `Saved view · ${new Date(view.created_at).toLocaleString()}`;
-      viewsPanel.hidden = true;
-      viewsToggle.setAttribute("aria-pressed", "false");
-      bubble.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text || send.disabled) return;
-      input.value = "";
-      ask(text);
-    });
-  </script>
+  <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

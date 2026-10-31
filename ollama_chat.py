@@ -30,8 +30,12 @@ async def list_models() -> list[str] | None:
         return None
 
 
-async def stream_chat(model: str, system: str, messages: list[dict]):
-    """Yield the reply's text as it streams. Raises OllamaError with a readable message."""
+async def stream_chat(model: str, system: str, messages: list[dict], metrics: dict | None = None):
+    """Yield the reply's text as it streams. Raises OllamaError with a readable message.
+
+    If `metrics` is given, it's filled from Ollama's last chunk: prompt and output token counts
+    and their durations (prompt_eval_count, eval_count, ... in nanoseconds).
+    """
     body = {
         "model": model,
         "messages": [{"role": "system", "content": system}, *messages],
@@ -59,5 +63,7 @@ async def stream_chat(model: str, system: str, messages: list[dict]):
                         raise OllamaError(f"Ollama error: {chunk['error']}")
                     if text := chunk.get("message", {}).get("content"):
                         yield text
+                    if chunk.get("done") and metrics is not None:
+                        metrics.update({k: v for k, v in chunk.items() if k.endswith(("_count", "_duration"))})
     except httpx.ConnectError:
         raise OllamaError(f"Could not reach Ollama at {OLLAMA_URL}. Is `ollama serve` running?")

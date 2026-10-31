@@ -4,6 +4,7 @@ The browser renders the model's OpenUI Lang output with the OpenUI CDN bundle;
 this server only forwards the conversation to the model and streams the text back.
 """
 
+import json
 import os
 import re
 from pathlib import Path
@@ -111,6 +112,14 @@ async def chat(req: ChatRequest):
                 final = await stream.get_final_message()
                 if final.stop_reason == "refusal":
                     yield "\n[error] Claude declined this request."
+                u = final.usage
+                yield meta_line({
+                    "provider": "claude",
+                    "model": final.model,
+                    "input_tokens": (u.input_tokens or 0) + (u.cache_read_input_tokens or 0) + (u.cache_creation_input_tokens or 0),
+                    "cache_read_tokens": u.cache_read_input_tokens or 0,
+                    "output_tokens": u.output_tokens,
+                })
         except anthropic.RateLimitError:
             yield "\n[error] Rate limited, please retry shortly."
         except anthropic.APIStatusError as e:
@@ -125,11 +134,60 @@ async def chat_ollama(req: ChatRequest):
     if not req.model:
         yield "\n[error] Choose an Ollama model."
         return
+    metrics = {}
     try:
-        async for text in ollama_chat.stream_chat(req.model, req.system, [m.model_dump() for m in req.messages]):
+        async for text in ollama_chat.stream_chat(req.model, req.system, [m.model_dump() for m in req.messages], metrics):
             yield text
     except ollama_chat.OllamaError as e:
         yield f"\n[error] {e}"
+        return
+    if metrics:
+        ns = 1e-9
+        yield meta_line({
+            "provider": "ollama",
+            "model": req.model,
+            "input_tokens": metrics.get("prompt_eval_count"),
+            "output_tokens": metrics.get("eval_count"),
+            # Ollama times generation itself, so tokens/s excludes the network and prompt processing.
+            "output_seconds": round(metrics.get("eval_duration", 0) * ns, 2),
+            "prompt_seconds": round(metrics.get("prompt_eval_duration", 0) * ns, 2),
+            "load_seconds": round(metrics.get("load_duration", 0) * ns, 2),
+        })
+
+
+def meta_line(meta: dict) -> str:
+    """Usage and timing for the page's meter, sent after the reply as one "[meta] {json}" line."""
+    return "\n[meta] " + json.dumps(meta)
+
+
+class CountRequest(BaseModel):
+    texts: list[str]
+
+
+@app.post("/api/count-tokens")
+async def count_tokens(req: CountRequest):
+    """Count tokens with Claude's tokenizer (free, needs the API key), for the OpenUI-vs-JSON
+    comparison. Without a key, estimate about 4 characters per token."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return {"counts": [round(len(t) / 4) for t in req.texts], "approximate": True}
+
+    async def count(text: str) -> int:
+        res = await client.messages.count_tokens(model=MODEL, messages=[{"role": "user", "content": text}])
+        return res.input_tokens
+
+    try:
+        overhead = await count(".") - 1  # tokens for the message wrapper, not the text itself
+        counts = [max(0, await count(t) - overhead) for t in req.texts]
+        return {"counts": counts, "approximate": False}
+    except anthropic.APIError:
+        return {"counts": [round(len(t) / 4) for t in req.texts], "approximate": True}
+
+
+@app.get("/api/gallery")
+async def gallery():
+    """Live samples for the Gallery tab, one OpenUI Lang program per component (examples/gallery.json)."""
+    path = Path(__file__).parent / "examples" / "gallery.json"
+    return json.loads(path.read_text()) if path.is_file() else {}
 
 
 @app.get("/api/tools")
