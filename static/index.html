@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/static/pearl/tokens.css" />
   <link rel="stylesheet" href="/static/pearl/bundle.css" />
   <link rel="stylesheet" href="/static/pearl/openui-pearl.css" />
+  <link rel="stylesheet" href="/static/components.css" />
   <script src="https://cdn.jsdelivr.net/npm/@openuidev/browser-bundle@0.2.1/dist/openui-bundle.min.js"></script>
   <script>
     // Apply the saved theme before first paint: Pearl (light) or Glass (dark).
@@ -127,6 +128,7 @@
         return library.prompt({
           preamble:
             "You are a helpful assistant. Answer every message with a rich, interactive UI. " +
+            "Reply with OpenUI Lang only: start directly with the root line, with no text before or after it and no code fences. " +
             "Use sentence case, and at most one primary (accent) button per view; make other buttons secondary.",
           tools,
         });
@@ -218,8 +220,11 @@
     function splitErrors(text) {
       const lines = text.split("\n");
       const errors = lines.filter((l) => l.startsWith("[error]"));
-      const lang = lines.filter((l) => !l.startsWith("[error]") && !/^\s*```/.test(l)).join("\n");
-      return { lang, errors };
+      let code = lines.filter((l) => !l.startsWith("[error]") && !/^\s*```/.test(l));
+      // A sentence of explanation before the code makes the whole reply unparseable, so start at "root =".
+      const start = code.findIndex((l) => /^\s*root\s*=/.test(l));
+      if (start > 0) code = code.slice(start);
+      return { lang: code.join("\n"), errors };
     }
 
     function render(root, notice, text, isStreaming) {

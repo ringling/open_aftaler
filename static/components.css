@@ -1,0 +1,36 @@
+/* Styles for the custom components in components.js, built from Pearl tokens (tokens.css). */
+
+/* Meter: recessed track (a Pearl Well) with the accent as fill. */
+.ui-meter { display: flex; flex-direction: column; gap: var(--space-2); }
+.ui-meter__head { display: flex; justify-content: space-between; gap: var(--space-3); font-size: 16px; line-height: 24px; color: var(--ink); }
+.ui-meter__value { font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+.ui-meter__track { height: 12px; border-radius: var(--radius-pill); background: var(--well); box-shadow: var(--well-inset); overflow: hidden; }
+.ui-meter__fill { height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.4s ease; }
+.ui-meter__caption { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); }
+
+/* Timeline: an engraved vertical line with a dot per event. */
+.ui-timeline { list-style: none; margin: 0; padding: 0 0 0 var(--space-5); position: relative; }
+.ui-timeline::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 1px; background: var(--engrave); box-shadow: 1px 0 0 var(--highlight); }
+.ui-timeline__item { position: relative; display: flex; flex-direction: column; padding-bottom: var(--space-4); }
+.ui-timeline__item:last-child { padding-bottom: 0; }
+.ui-timeline__item::before { content: ""; position: absolute; left: calc(-1 * var(--space-5) + 1px); top: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--ground-mid); box-shadow: 0 0 0 1px var(--ink-muted); }
+.ui-timeline__item:first-child::before { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.ui-timeline__date { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.ui-timeline__title { font-size: 17px; line-height: 22px; color: var(--ink); }
+.ui-timeline__detail { font-size: 15px; line-height: 22px; font-weight: 300; color: var(--ink-muted); }
+
+/* Facts: label/value rows with engraved rules between them. */
+.ui-facts { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; margin: 0; }
+.ui-facts dt, .ui-facts dd { margin: 0; padding: var(--space-3) 0; }
+.ui-facts dt { color: var(--ink-muted); font-weight: 300; padding-right: var(--space-5); }
+.ui-facts dd { color: var(--ink); }
+.ui-facts dt:not(:first-of-type), .ui-facts dt:not(:first-of-type) + dd { border-top: 1px solid var(--divider); box-shadow: inset 0 1px 0 var(--highlight); }
+
+/* Board: columns side by side, each holding engraved cards. */
+.ui-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); align-items: start; }
+.ui-column { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--well); box-shadow: var(--well-inset); }
+.ui-column__head { display: flex; justify-content: space-between; align-items: center; padding: 0 var(--space-1) var(--space-1); font-size: 17px; line-height: 22px; color: var(--ink); text-shadow: var(--deboss-text); }
+.ui-column__count { font-size: 15px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.ui-column__card { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-3); font-size: 15px; line-height: 22px; color: var(--ink); }
+.ui-column__tag { padding: 2px 10px; font-size: 13px; }
+.ui-column__empty { padding: var(--space-3) var(--space-1); font-size: 15px; font-weight: 300; color: var(--ink-muted); }

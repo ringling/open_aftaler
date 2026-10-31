@@ -217,6 +217,12 @@ restarts:
 | --- | --- | --- |
 | `list_tasks(status?)` | read | Returns `{rows: [...]}`, optionally only `open` or `done` tasks |
 | `add_task(title, priority?)` | write | Adds an open task and returns `{task: {...}}` |
+| `get_task(id)` | read | One task with all its details. No id (nothing picked yet) returns an empty task |
+| `update_task(id, title?, priority?, status?)` | write | Changes a task; `status: "done"` completes it, `"open"` reopens it |
+| `delete_task(id)` | write | Deletes a task |
+| `task_summary()` | read | Totals: `total`, `open`, `done`, `percent_done` and `open_by_priority` |
+
+Every task has an `id`, `title`, `priority`, `status` and `created_at` (an ISO date).
 
 ### How a tool gets from Python to the generated UI
 
@@ -286,6 +292,12 @@ fresh data, so a saved task overview shows today's tasks.
   in one SQLite file (`data/app.db`, or the path in `APP_DB`). The file and tables are created on
   start-up, and the task list is seeded with three example tasks when it's empty. `data/` is not
   committed.
+- **Built-in examples:** `examples/views.json` holds five example views, written by Claude, that
+  together use every custom component and every tool: *Task dashboard*, *Task details*, *Add and
+  triage tasks*, *Weekly report* and *Launch roadmap* (made-up data, no tools). On start-up,
+  `db.py` adds each one to Saved views once. A deleted example stays deleted (the
+  `seeded_examples` table remembers it), and examples added to the file later appear on the next
+  start.
 
 ## Components: what Claude can draw
 
@@ -303,7 +315,20 @@ A component has four parts:
 | `props` | A Zod schema. Key order is the argument order in OpenUI Lang |
 | `component` | A React function that gets `{props, renderNode}` and returns the element |
 
-The example adds two components that use Pearl's `pearl-stat` style:
+The app adds these components, styled with Pearl in `static/components.css`:
+
+| Component | Shows |
+| --- | --- |
+| `Stats([Stat(figure, caption), ...])` | A row of headline numbers |
+| `Meter(label, value, max?, caption?)` | Progress toward a goal, as a recessed bar with an accent fill |
+| `Timeline(dates, titles, details?)` | Dated events on an engraved vertical line |
+| `Facts(labels, values)` | Label/value pairs for one record |
+| `Board([Column(title, items, tags?), ...])` | A Kanban board of columns with tagged cards |
+
+`Meter`, `Timeline`, `Facts` and `Column` take plain arrays, like OpenUI's own `Col()`, so they
+work directly with tool results, for example `Column("Open", tasks.rows.title, tasks.rows.priority)`.
+
+The first two show how a component is defined:
 
 ```js
 const Stat = defineComponent({

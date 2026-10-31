@@ -6,7 +6,10 @@ A minimal [Thesys OpenUI](https://openui.com) generative-UI chat. Claude answers
 - `main.py`: FastAPI server that streams Claude's reply (`claude-opus-5-5`).
 - `ollama_chat.py`: streams replies from a local Ollama model.
 - `db.py`: SQLite storage (`data/app.db`) for saved views and the example task list.
-- `static/components.js`: custom components (`Stats`, `Stat`) added to OpenUI's library.
+- `static/components.js`: custom components added to OpenUI's library: `Stats`, `Meter`, `Timeline`,
+  `Facts` and a Kanban `Board`.
+- `examples/views.json`: five built-in example views, written by Claude, that use every component
+  and tool. They appear under **Saved views**.
 - `static/index.html`: chat page that uses the OpenUI CDN bundle (`@openuidev/browser-bundle`). No Node or build step.
 
 ## Run
